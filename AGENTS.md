@@ -2,6 +2,9 @@
 
 ## Project Rules
 
+- Prioritize the implementation plan in `docs/implementation-plan.md` until the project reaches "configured model to flyable firmware".
+- Update `docs/implementation-plan.md` whenever a phase status changes, a task is completed, or scope changes.
+- Before starting feature work, check the progress tracker in `docs/implementation-plan.md` and align the change with the next unfinished phase unless the user explicitly redirects.
 - Treat `vendor/madflight/` as third-party code. Do not edit it unless the user explicitly asks for a MadFlight patch.
 - Put model-specific pins, PID values, receiver settings, and wiring notes under `profiles/`.
 - Use `model.toml` as the source-of-truth model config. Do not hand-edit generated files under `build/generated/`.
@@ -38,4 +41,5 @@ $env:AIRYN_PROFILE="dev/quad_x_basic_edit"; pio run -e RP2350A
 - Project structure: `docs/flight_controller_project_structure.md`
 - MadFlight integration notes: `docs/madflight-integration.md`
 - Model profile rules: `docs/model-config.md`
+- Implementation plan: `docs/implementation-plan.md`
 - Hardware wiring rules: `docs/wiring-guide.md`
