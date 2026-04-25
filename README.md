@@ -94,6 +94,16 @@ When a model is verified, freeze it into `profiles/stable/`:
 python tools/freeze_model.py dev/test_model stable/quad_x_basic --reason "First verified Quad X wiring"
 ```
 
+Existing stable models can also be changed. Copy the old model into a dev editing profile, test it there, then write it back with an update reason:
+
+```bash
+python tools/edit_model.py stable/quad_x_basic --target dev/quad_x_basic_edit --reason "Change receiver pins"
+python tools/check_config.py dev/quad_x_basic_edit
+python tools/freeze_model.py dev/quad_x_basic_edit stable/quad_x_basic --update --reason "Verified receiver pin update"
+```
+
+The rule is not "old models are immutable"; the rule is "old models are modified through a tracked edit and verification path."
+
 ## MadFlight Dependency
 
 Directly cloning MadFlight into `vendor/madflight` is technically workable, but this repo uses a submodule instead. The reason is practical: the parent repo tracks only the exact MadFlight commit, while MadFlight keeps its own history and can be upgraded cleanly.
@@ -103,4 +113,3 @@ MadFlight `main` is a development branch. For this repo the dependency is pinned
 ## Safety
 
 Do not test motor output with propellers installed. The current profile uses placeholder pins, placeholder PID values, and unverified motor order.
-

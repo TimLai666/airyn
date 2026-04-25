@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Copy a dev profile into a stable or experimental profile."""
+"""Freeze or update a dev profile into a stable or experimental profile."""
 
 from __future__ import annotations
 
@@ -30,6 +30,7 @@ def main() -> int:
     parser.add_argument("source", help="source profile, for example dev/test_model")
     parser.add_argument("target", help="target profile, for example stable/quad_x_basic")
     parser.add_argument("--force", action="store_true", help="overwrite target profile")
+    parser.add_argument("--update", action="store_true", help="alias for --force when updating an existing profile")
     parser.add_argument("--reason", default="Freeze from development profile")
     args = parser.parse_args()
 
@@ -40,8 +41,9 @@ def main() -> int:
         print(f"ERROR: missing source model_config.h: {source}", file=sys.stderr)
         return 2
 
-    if target.exists():
-        if not args.force:
+    replacing_existing = target.exists()
+    if replacing_existing:
+        if not (args.force or args.update):
             print(f"ERROR: target exists, pass --force to overwrite: {target}", file=sys.stderr)
             return 2
         shutil.rmtree(target)
@@ -57,14 +59,15 @@ def main() -> int:
     notes = target / "notes.md"
     date = dt.date.today().isoformat()
     with notes.open("a", encoding="utf-8") as handle:
-        handle.write(f"\n## {date} Freeze\n\n")
+        action = "Update" if replacing_existing else "Freeze"
+        handle.write(f"\n## {date} {action}\n\n")
         handle.write(f"- Source: `{args.source}`\n")
         handle.write(f"- Reason: {args.reason}\n")
 
-    print(f"Frozen {args.source} -> {args.target}")
+    verb = "Updated" if replacing_existing else "Frozen"
+    print(f"{verb} {args.source} -> {args.target}")
     return 0
 
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

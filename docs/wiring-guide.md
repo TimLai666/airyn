@@ -18,4 +18,4 @@ Every stable profile should document:
 - Verify IMU orientation before PID tests.
 - Verify motor order and direction at low power.
 - Move a profile to `stable/` only after wiring and notes are complete.
-
+- When changing an old stable model, update `wiring.md` in the dev editing copy before writing it back.
