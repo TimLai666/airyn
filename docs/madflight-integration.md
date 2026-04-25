@@ -17,11 +17,10 @@ Direct clone is technically possible, but it creates an embedded Git repository 
 ```bash
 git -C vendor/madflight fetch --tags
 git -C vendor/madflight checkout <tag-or-commit>
-python tools/check_config.py dev/test_model
-python tools/build_model.py dev/test_model
+pio run -e RP2350A
 ```
 
-Then build the firmware target before committing the submodule pointer update.
+The PlatformIO build validates the active profile and regenerates temporary build artifacts before compiling.
 
 ## Local Changes
 
@@ -31,4 +30,3 @@ Avoid local changes in `vendor/madflight/`. If a change is unavoidable:
 - Record why the wrapper/profile layer could not solve it.
 - Record whether the change should be proposed upstream.
 - Retest after every MadFlight upgrade.
-

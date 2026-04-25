@@ -41,12 +41,7 @@ If the repo is already cloned:
 git submodule update --init --recursive
 ```
 
-Install PlatformIO, then verify the active profile:
-
-```bash
-python tools/check_config.py dev/test_model
-python tools/build_model.py dev/test_model
-```
+Install PlatformIO. The build command automatically validates `model.toml` and creates temporary firmware build artifacts under `build/generated/`.
 
 ## VS Code IntelliSense
 
@@ -63,26 +58,28 @@ After installing PlatformIO, run a build once so the framework packages and incl
 Default profile and target:
 
 ```bash
-./scripts/build.sh
+pio run
 ```
 
-Windows PowerShell:
-
-```powershell
-.\scripts\build.ps1
-```
-
-Specify profile and target:
+Explicit target:
 
 ```bash
-./scripts/build.sh dev/test_model RP2350A
+pio run -e RP2350A
+```
+
+Build another profile as one command:
+
+```powershell
+$env:AIRYN_PROFILE="dev/test_model"; pio run -e RP2350A
 ```
 
 Upload:
 
 ```bash
-./scripts/flash.sh dev/test_model RP2350A
+pio run -e RP2350A -t upload
 ```
+
+The `scripts/` helpers are optional shortcuts, not required steps.
 
 ## Profile Workflow
 
@@ -94,9 +91,11 @@ profiles/dev/test_model/
 
 Each profile should contain:
 
-- `model_config.h`
+- `model.toml`
 - `wiring.md`
 - `notes.md`
+
+`model.toml` is the single source of truth for a model. The build step turns it into firmware build artifacts under `build/generated/`; those files are not edited by hand and are not the profile format.
 
 When a model is verified, freeze it into `profiles/stable/`:
 
@@ -108,7 +107,6 @@ Existing stable models can also be changed. Copy the old model into a dev editin
 
 ```bash
 python tools/edit_model.py stable/quad_x_basic --target dev/quad_x_basic_edit --reason "Change receiver pins"
-python tools/check_config.py dev/quad_x_basic_edit
 python tools/freeze_model.py dev/quad_x_basic_edit stable/quad_x_basic --update --reason "Verified receiver pin update"
 ```
 

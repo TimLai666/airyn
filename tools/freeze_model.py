@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
-import re
 import shutil
 import sys
 from pathlib import Path
+
+from model_profile import update_toml_name
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -37,8 +38,8 @@ def main() -> int:
     source = as_profile_dir(args.source)
     target = as_profile_dir(args.target)
 
-    if not (source / "model_config.h").exists():
-        print(f"ERROR: missing source model_config.h: {source}", file=sys.stderr)
+    if not (source / "model.toml").exists():
+        print(f"ERROR: missing source model.toml: {source}", file=sys.stderr)
         return 2
 
     replacing_existing = target.exists()
@@ -50,10 +51,10 @@ def main() -> int:
 
     shutil.copytree(source, target)
 
-    config = target / "model_config.h"
+    config = target / "model.toml"
     text = config.read_text(encoding="utf-8")
     name = model_name_from_profile(args.target)
-    text = re.sub(r'#define\s+MODEL_NAME\s+".*?"', f'#define MODEL_NAME "{name}"', text)
+    text = update_toml_name(text, name)
     config.write_text(text, encoding="utf-8")
 
     notes = target / "notes.md"

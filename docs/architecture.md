@@ -22,7 +22,7 @@ The first firmware is intentionally small:
 
 - `src/main.cpp` exposes Arduino `setup()`, `loop()`, and MadFlight `imu_loop()`.
 - `src/app/flight_app.cpp` starts MadFlight, initializes motor outputs, and updates AHRS.
-- `profiles/dev/test_model/model_config.h` feeds both Airyn metadata and the MadFlight config string.
+- `profiles/dev/test_model/model.toml` is the model source of truth.
+- `tools/build_model.py` creates firmware build artifacts under `build/generated/` from that TOML.
 
 This is a smoke-test foundation, not a flight-verified controller.
-

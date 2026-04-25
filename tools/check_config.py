@@ -1,46 +1,12 @@
 #!/usr/bin/env python3
-"""Validate an Airyn Flight model profile."""
+"""Validate an Airyn Flight TOML model profile."""
 
 from __future__ import annotations
 
 import argparse
-import re
 import sys
-from pathlib import Path
 
-
-ROOT = Path(__file__).resolve().parents[1]
-DEFINE_RE = re.compile(r"^\s*#define\s+([A-Za-z_][A-Za-z0-9_]*)\s+(.+?)\s*$")
-
-
-def profile_dir(profile: str) -> Path:
-    candidate = Path(profile)
-    if not candidate.is_absolute():
-        candidate = ROOT / "profiles" / profile
-    return candidate.resolve()
-
-
-def parse_defines(config: Path) -> dict[str, str]:
-    defines: dict[str, str] = {}
-    for line in config.read_text(encoding="utf-8").splitlines():
-        match = DEFINE_RE.match(line)
-        if match:
-            defines[match.group(1)] = match.group(2).strip()
-    return defines
-
-
-def parse_int(value: str) -> int | None:
-    value = value.split("//", 1)[0].strip()
-    if value.startswith('"') or value.startswith("R\""):
-        return None
-    try:
-        return int(value.rstrip("uUlLfF"), 0)
-    except ValueError:
-        return None
-
-
-def require(defines: dict[str, str], names: list[str]) -> list[str]:
-    return [name for name in names if name not in defines]
+from model_profile import ROOT, load_profile, profile_file, require
 
 
 def main() -> int:
@@ -48,58 +14,70 @@ def main() -> int:
     parser.add_argument("profile", nargs="?", default="dev/test_model")
     args = parser.parse_args()
 
-    directory = profile_dir(args.profile)
-    config = directory / "model_config.h"
+    config = profile_file(args.profile)
     if not config.exists():
         print(f"ERROR: missing {config}", file=sys.stderr)
         return 2
 
-    defines = parse_defines(config)
-    required = [
-        "MODEL_NAME",
-        "TARGET_BOARD",
-        "MOTOR_COUNT",
-        "IMU_I2C_BUS",
-        "IMU_SDA_PIN",
-        "IMU_SCL_PIN",
-        "RECEIVER_PIN",
-        "AIRYN_MADFLIGHT_CONFIG",
-    ]
-    missing = require(defines, required)
+    try:
+        data = load_profile(args.profile)
+    except Exception as exc:
+        print(f"ERROR: cannot parse {config}: {exc}", file=sys.stderr)
+        return 2
+
+    missing: list[str] = []
+    missing.extend(require(data, ["name", "target_board", "frame", "imu", "receiver", "esc", "motors"], "model"))
+    if "imu" in data:
+        missing.extend(require(data["imu"], ["type", "bus", "i2c_bus", "sda_pin", "scl_pin", "int_pin", "address"], "imu"))
+    if "receiver" in data:
+        missing.extend(require(data["receiver"], ["type"], "receiver"))
+    if "esc" in data:
+        missing.extend(require(data["esc"], ["protocol"], "esc"))
     if missing:
-        print("ERROR: missing defines: " + ", ".join(missing), file=sys.stderr)
+        print("ERROR: missing TOML keys: " + ", ".join(missing), file=sys.stderr)
         return 2
 
-    motor_count = parse_int(defines["MOTOR_COUNT"])
-    if motor_count is None or motor_count <= 0:
-        print("ERROR: MOTOR_COUNT must be a positive integer", file=sys.stderr)
+    motors = data["motors"]
+    if not isinstance(motors, list) or not motors:
+        print("ERROR: motors must be a non-empty array", file=sys.stderr)
         return 2
 
-    missing_motors = [f"MOTOR{i}_PIN" for i in range(1, motor_count + 1) if f"MOTOR{i}_PIN" not in defines]
-    if missing_motors:
-        print("ERROR: missing motor pin defines: " + ", ".join(missing_motors), file=sys.stderr)
+    if data["frame"] == "quad_x" and len(motors) != 4:
+        print("ERROR: frame quad_x requires exactly 4 motors", file=sys.stderr)
         return 2
 
     pins: dict[int, str] = {}
-    pin_names = ["IMU_SDA_PIN", "IMU_SCL_PIN", "IMU_INT_PIN", "RECEIVER_PIN", "LED_PIN"]
-    pin_names.extend(f"MOTOR{i}_PIN" for i in range(1, motor_count + 1))
 
-    for name in pin_names:
-        if name not in defines:
-            continue
-        pin = parse_int(defines[name])
-        if pin is None or pin < 0:
-            continue
-        if pin in pins:
-            print(f"ERROR: GPIO {pin} used by both {pins[pin]} and {name}", file=sys.stderr)
+    def add_pin(name: str, value: object) -> bool:
+        if not isinstance(value, int) or value < 0:
+            return True
+        if value in pins:
+            print(f"ERROR: GPIO {value} used by both {pins[value]} and {name}", file=sys.stderr)
+            return False
+        pins[value] = name
+        return True
+
+    imu = data["imu"]
+    for key in ("sda_pin", "scl_pin", "int_pin"):
+        if not add_pin(f"imu.{key}", imu[key]):
             return 2
-        pins[pin] = name
 
-    if "FRAME_TYPE_QUAD_X" in defines and motor_count != 4:
-        print("ERROR: FRAME_TYPE_QUAD_X requires MOTOR_COUNT 4", file=sys.stderr)
+    receiver = data["receiver"]
+    if "pin" in receiver and not add_pin("receiver.pin", receiver["pin"]):
         return 2
 
-    print(f"OK: {directory.relative_to(ROOT)}")
+    board = data.get("board", {})
+    if "led_pin" in board and not add_pin("board.led_pin", board["led_pin"]):
+        return 2
+
+    for index, motor in enumerate(motors, start=1):
+        if "pin" not in motor:
+            print(f"ERROR: motors[{index}] missing pin", file=sys.stderr)
+            return 2
+        if not add_pin(f"motors[{index}].pin", motor["pin"]):
+            return 2
+
+    print(f"OK: {config.parent.relative_to(ROOT)}")
     return 0
 
 

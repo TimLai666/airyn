@@ -4,14 +4,14 @@ Each model profile is a directory under `profiles/`:
 
 ```text
 profiles/dev/test_model/
-├── model_config.h
+├── model.toml
 ├── wiring.md
 └── notes.md
 ```
 
 ## Rules
 
-- Keep model-specific values in `model_config.h`.
+- Keep model-specific values in `model.toml`.
 - Keep physical wiring in `wiring.md`.
 - Keep test status and changes in `notes.md`.
 - Existing stable profiles are allowed to change, but change them through a dev editing copy and record the reason.
@@ -19,19 +19,21 @@ profiles/dev/test_model/
 
 ## Active Profile
 
-Build scripts set `AIRYN_PROFILE`. PlatformIO runs `tools/platformio_prebuild.py`, which calls:
+PlatformIO runs `tools/platformio_prebuild.py` before every build. That hook reads `AIRYN_PROFILE`, defaults to `dev/test_model`, validates the profile, and creates build artifacts.
+
+Normal build is one command:
 
 ```bash
-python tools/build_model.py dev/test_model
+pio run -e RP2350A
 ```
 
-That generates:
+That generates firmware build artifacts:
 
 ```text
 build/generated/active_model_config.h
 ```
 
-The firmware includes that generated header through `src/madflight_config.h`.
+The firmware includes that generated header through `src/madflight_config.h`. The generated header is an implementation detail for MCU builds; do not edit it by hand.
 
 ## Validation
 
@@ -41,7 +43,9 @@ Run:
 python tools/check_config.py dev/test_model
 ```
 
-The current checker validates required defines, motor pin presence, and duplicate GPIO use.
+The current checker validates required TOML keys, motor pin presence, and duplicate GPIO use.
+
+Manual validation is optional during normal builds because `pio run` invokes it automatically.
 
 ## Editing Existing Models
 
@@ -51,8 +55,13 @@ Use this flow:
 
 ```bash
 python tools/edit_model.py stable/quad_x_basic --target dev/quad_x_basic_edit --reason "Change receiver pins"
-python tools/check_config.py dev/quad_x_basic_edit
 python tools/freeze_model.py dev/quad_x_basic_edit stable/quad_x_basic --update --reason "Verified receiver pin update"
 ```
 
 This keeps the old profile modifiable while still leaving an edit trail in `notes.md`.
+
+## Why Not Runtime TOML Yet
+
+The firmware cannot read `profiles/.../model.toml` from the repo after it has been flashed to a microcontroller. Runtime TOML is possible, but it requires storing the file on flash filesystem or SD card, adding a C++ TOML parser, and defining boot-time failure behavior.
+
+For now, TOML is the human-edited source of truth and `build/generated/active_model_config.h` is a temporary build artifact.

@@ -1,5 +1,7 @@
 # 自製飛控軟體專案結構設計文件
 
+> Implementation note: the current repo uses `model.toml` as the source-of-truth profile format. Older examples in this design note that mention `model_config.h` should be read as historical planning notes; the build now generates firmware artifacts under `build/generated/` automatically during `pio run`.
+
 ## 1. 專案定位
 
 本專案不是單一機型的飛控程式，而是一個可長期擴充的飛控軟體平台。

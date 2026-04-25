@@ -37,8 +37,8 @@ def main() -> int:
     source = as_profile_dir(args.source)
     target = as_profile_dir(target_profile)
 
-    if not (source / "model_config.h").exists():
-        print(f"ERROR: missing source model_config.h: {source}", file=sys.stderr)
+    if not (source / "model.toml").exists():
+        print(f"ERROR: missing source model.toml: {source}", file=sys.stderr)
         return 2
 
     if not target_profile.replace("\\", "/").startswith("dev/"):
@@ -67,4 +67,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

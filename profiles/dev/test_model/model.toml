@@ -1,0 +1,65 @@
+name = "dev_test_model"
+target_board = "pico2_breadboard_dev"
+frame = "quad_x"
+
+[board]
+madflight_board = "brd/default.h"
+led_gizmo = "HIGH_IS_ON"
+led_pin = 25
+
+[imu]
+type = "MPU6050"
+bus = "i2c"
+i2c_bus = 0
+sda_pin = 4
+scl_pin = 5
+int_pin = 9
+address = 0x68
+
+[receiver]
+type = "PPM"
+pin = 8
+channels = 8
+
+[esc]
+protocol = "DSHOT"
+dshot_rate = 300
+
+[[motors]]
+name = "M1"
+pin = 2
+position = "front_right"
+
+[[motors]]
+name = "M2"
+pin = 3
+position = "rear_right"
+
+[[motors]]
+name = "M3"
+pin = 6
+position = "rear_left"
+
+[[motors]]
+name = "M4"
+pin = 7
+position = "front_left"
+
+[pid.roll]
+p = 40.0
+i = 0.0
+d = 15.0
+
+[pid.pitch]
+p = 40.0
+i = 0.0
+d = 15.0
+
+[pid.yaw]
+p = 30.0
+i = 0.0
+d = 0.0
+
+[madflight]
+ahr_gizmo = "MAHONY"
+

@@ -1,15 +1,13 @@
 #!/usr/bin/env python3
-"""Generate the active model config include for the selected profile."""
+"""Generate firmware build artifacts from the selected TOML profile."""
 
 from __future__ import annotations
 
 import argparse
 import subprocess
 import sys
-from pathlib import Path
 
-
-ROOT = Path(__file__).resolve().parents[1]
+from model_profile import ROOT, generate_header, load_profile, profile_file
 
 
 def main() -> int:
@@ -17,8 +15,7 @@ def main() -> int:
     parser.add_argument("profile", nargs="?", default="dev/test_model")
     args = parser.parse_args()
 
-    profile_dir = (ROOT / "profiles" / args.profile).resolve()
-    config = profile_dir / "model_config.h"
+    config = profile_file(args.profile)
     if not config.exists():
         print(f"ERROR: missing {config}", file=sys.stderr)
         return 2
@@ -27,19 +24,14 @@ def main() -> int:
     if check.returncode != 0:
         return check.returncode
 
+    data = load_profile(args.profile)
+
     output_dir = ROOT / "build" / "generated"
     output_dir.mkdir(parents=True, exist_ok=True)
     output = output_dir / "active_model_config.h"
+    output.write_text(generate_header(data), encoding="utf-8")
 
-    include_path = Path("..") / ".." / "profiles" / args.profile / "model_config.h"
-    include_path = include_path.as_posix()
-    output.write_text(
-        "#pragma once\n"
-        f'#include "{include_path}"\n',
-        encoding="utf-8",
-    )
-
-    print(f"Generated {output.relative_to(ROOT)}")
+    print(f"Generated {output.relative_to(ROOT)} from {config.relative_to(ROOT)}")
     return 0
 
 
