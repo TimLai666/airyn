@@ -41,7 +41,20 @@ If the repo is already cloned:
 git submodule update --init --recursive
 ```
 
-Install PlatformIO. The build command automatically validates `model.toml` and creates temporary firmware build artifacts under `build/generated/`.
+Install PlatformIO. This project uses PlatformIO to download MCU frameworks, resolve Arduino headers such as `Arduino.h`, compile firmware, upload to the board, and open the serial monitor.
+
+Recommended setup:
+
+1. Install VS Code.
+2. Install the `PlatformIO IDE` extension.
+3. Restart VS Code and open this repo folder.
+4. Confirm the CLI is available:
+
+```bash
+pio --version
+```
+
+The build command automatically validates `model.toml` and creates temporary firmware build artifacts under `build/generated/`.
 
 ## VS Code IntelliSense
 
@@ -96,6 +109,50 @@ Each profile should contain:
 - `notes.md`
 
 `model.toml` is the single source of truth for a model. The build step turns it into firmware build artifacts under `build/generated/`; those files are not edited by hand and are not the profile format.
+
+## Model Settings
+
+Each drone or aircraft model is described by one `model.toml`. The current format covers:
+
+- Model identity: model name, target board, and frame type.
+- Board settings: MadFlight board header, LED pin, and board-level defaults.
+- IMU settings: sensor type, bus type, I2C bus, SDA/SCL pins, interrupt pin, and address.
+- Receiver settings: receiver protocol, input pin or serial bus, and channel count.
+- ESC settings: output protocol and DShot rate.
+- Motors: motor count, output pins, names, and physical positions.
+- PID placeholders: roll, pitch, and yaw gains.
+- MadFlight bridge settings: values needed to translate the TOML profile into MadFlight's native config.
+
+Example:
+
+```toml
+name = "dev_test_model"
+target_board = "pico2_breadboard_dev"
+frame = "quad_x"
+
+[imu]
+type = "MPU6050"
+bus = "i2c"
+i2c_bus = 0
+sda_pin = 4
+scl_pin = 5
+int_pin = 9
+address = 0x68
+
+[receiver]
+type = "PPM"
+pin = 8
+channels = 8
+
+[esc]
+protocol = "DSHOT"
+dshot_rate = 300
+
+[[motors]]
+name = "M1"
+pin = 2
+position = "front_right"
+```
 
 When a model is verified, freeze it into `profiles/stable/`:
 
