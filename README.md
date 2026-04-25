@@ -48,6 +48,16 @@ python tools/check_config.py dev/test_model
 python tools/build_model.py dev/test_model
 ```
 
+## VS Code IntelliSense
+
+This project uses Arduino framework headers through PlatformIO. If VS Code reports `Arduino.h` or `madflight.h` include errors, install the PlatformIO IDE extension and let it configure the C/C++ extension. The repo includes `.vscode/settings.json` with:
+
+```json
+"C_Cpp.default.configurationProvider": "platformio.platformio-ide"
+```
+
+After installing PlatformIO, run a build once so the framework packages and include paths are downloaded.
+
 ## Build
 
 Default profile and target:
