@@ -1,0 +1,3 @@
+[submodule "vendor/madflight"]
+	path = vendor/madflight
+	url = https://github.com/qqqlab/madflight
