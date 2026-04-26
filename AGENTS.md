@@ -89,5 +89,6 @@ flight -> mission -> ground
 - Keep `docs/model-config.md` aligned with the TOML schema and tiered layout.
 - Keep `docs/board-config.md` aligned with the `boards/` schema.
 - Keep `docs/new-model-bringup.md` aligned with the actual build and setup flow.
+- Keep `docs/bringup-checklist.md` aligned with the firmware's actual serial output, CLI commands, and safety state machine. It is the authoritative hardware-verification reference.
 - Keep `docs/operating-modes.md` aligned with how Ground reaches Flight (direct vs through Mission).
 - Keep `docs/madflight-integration.md` aligned with the pinned submodule path and version.

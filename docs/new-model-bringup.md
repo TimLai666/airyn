@@ -38,15 +38,18 @@ Or from repo root:
 
 ## 4. Bench Checks
 
-Before propellers are installed:
+Before propellers are installed, run the full bring-up checklist in `docs/bringup-checklist.md`. Phases A–G cover:
 
-- Confirm IMU orientation and motion signs.
-- Confirm receiver channel map and arming channel.
-- Confirm failsafe triggers when receiver signal is lost.
-- Confirm motor output order with motor test tooling.
-- Confirm each motor position and spin direction against `model.toml`.
-- Confirm disarmed outputs are stopped.
-- Confirm armed idle output is low but stable.
+- IMU orientation and motion signs.
+- Receiver channel map and arming channel.
+- Failsafe trigger on receiver signal loss.
+- Motor output order via `spinmotors` CLI.
+- Each motor position and spin direction matched against `model.toml`.
+- Disarmed = motors stopped.
+- Armed-idle output is low and stable.
+- Mixer behavior on roll, pitch, yaw stick inputs.
+
+That checklist is calibrated for `models/dev/testbench/` on a Pico 2; for a new airframe substitute the matching pin table from your `model.toml` and `wiring.md` and run the same phases.
 
 ## 5. First Hover
 

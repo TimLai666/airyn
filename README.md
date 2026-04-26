@@ -167,5 +167,6 @@ Read next:
 - `docs/model-config.md`
 - `docs/board-config.md`
 - `docs/new-model-bringup.md`
+- `docs/bringup-checklist.md`
 - `docs/operating-modes.md`
 - `docs/madflight-integration.md`
