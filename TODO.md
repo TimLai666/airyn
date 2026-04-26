@@ -1,7 +1,3 @@
-依你目前 repo 狀態（monorepo 已成形，而且比概念階段完整），我會建議優先順序是這樣：
-
-## 優先做（現在就值得做）
-
 ### 1. 把 `models/` 加入 dev / stable / experimental 分層
 
 現在只有：
