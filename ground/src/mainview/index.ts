@@ -901,7 +901,6 @@ function setFlightConnected(on: boolean): void {
     const meta = connectBtn.querySelector<HTMLElement>(".op-btn-meta");
     if (label) label.textContent = on ? t("btn.disconnect_flight") : t("btn.connect_flight");
     if (meta) meta.textContent = on ? t("btn.disconnect_flight.meta") : t("btn.connect_flight.meta");
-    connectBtn.dataset["i18n-state"] = on ? "1" : "0";
   }
 
   // settings transport status

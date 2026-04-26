@@ -55,7 +55,7 @@
 
   color: var(--text-pri);
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 450;
   line-height: 1.4;
   font-variant-ligatures: none;
@@ -184,7 +184,7 @@ button { cursor: pointer; }
 .brand-mark {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 26px;
+  font-size: 30px;
   letter-spacing: 0.18em;
   color: var(--text-pri);
 }
@@ -199,7 +199,7 @@ button { cursor: pointer; }
 .brand-sub {
   font-family: var(--font-display);
   font-weight: 500;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.32em;
   color: var(--text-sec);
 }
@@ -209,7 +209,7 @@ button { cursor: pointer; }
   align-items: baseline;
   gap: 12px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.16em;
   color: var(--text-sec);
   text-transform: uppercase;
@@ -242,7 +242,7 @@ button { cursor: pointer; }
 
 .rail-key {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.32em;
   color: var(--text-mute);
   text-transform: uppercase;
@@ -251,7 +251,7 @@ button { cursor: pointer; }
 .rail-val {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 17px;
+  font-size: 19px;
   letter-spacing: 0.06em;
   color: var(--text-pri);
   display: inline-flex;
@@ -271,7 +271,7 @@ button { cursor: pointer; }
 
 .rail-foot {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   color: var(--text-mute);
   text-transform: uppercase;
@@ -291,7 +291,7 @@ button { cursor: pointer; }
   color: var(--text-pri);
   padding: 10px 14px;
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.24em;
   font-weight: 600;
   display: flex;
@@ -308,7 +308,7 @@ button { cursor: pointer; }
 
 .op-btn-meta {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.18em;
   color: var(--text-mute);
   font-weight: 400;
@@ -345,7 +345,7 @@ button { cursor: pointer; }
   padding: 14px 20px;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.28em;
   color: var(--text-mute);
   border-bottom: 2px solid transparent;
@@ -358,7 +358,7 @@ button { cursor: pointer; }
 
 .tab-num {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.18em;
   color: var(--accent-ochre-soft);
   font-weight: 400;
@@ -483,7 +483,7 @@ button { cursor: pointer; }
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.24em;
   color: var(--text-sec);
   text-transform: uppercase;
@@ -496,7 +496,7 @@ button { cursor: pointer; }
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.22em;
   color: var(--text-sec);
   text-transform: uppercase;
@@ -519,7 +519,7 @@ button { cursor: pointer; }
   transform: translateX(-50%);
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.28em;
   color: var(--accent-ir);
   text-transform: uppercase;
@@ -579,7 +579,7 @@ button { cursor: pointer; }
   border-bottom: 1px solid var(--rule);
   padding-bottom: 9px;
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.32em;
   text-transform: uppercase;
 }
@@ -600,14 +600,14 @@ button { cursor: pointer; }
 
 .readout-list dt {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.28em;
   color: var(--text-mute);
 }
 
 .readout-list dd {
   font-family: var(--font-mono);
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 500;
   color: var(--text-pri);
   letter-spacing: 0.04em;
@@ -616,7 +616,7 @@ button { cursor: pointer; }
 .readout-list .num { font-feature-settings: "tnum" 1; }
 .readout-list .unit {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.18em;
   color: var(--text-mute);
   margin-left: 6px;
@@ -636,7 +636,7 @@ button { cursor: pointer; }
   padding: 10px 0;
   border-bottom: 1px solid var(--rule);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.06em;
 }
 .queue-list li:last-child { border-bottom: none; }
@@ -645,7 +645,7 @@ button { cursor: pointer; }
 .queue-name { color: var(--text-pri); }
 .queue-state {
   color: var(--text-mute);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.24em;
 }
 
@@ -687,7 +687,7 @@ button { cursor: pointer; }
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.24em;
   color: var(--text-sec);
   text-transform: uppercase;
@@ -712,7 +712,7 @@ button { cursor: pointer; }
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.22em;
   color: var(--text-sec);
   text-transform: uppercase;
@@ -767,7 +767,7 @@ button { cursor: pointer; }
 }
 .cam--thumb .cam-class {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.24em;
   color: var(--text-pri);
 }
@@ -775,7 +775,7 @@ button { cursor: pointer; }
 
 .cam-state {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.28em;
   color: var(--text-mute);
 }
@@ -802,7 +802,7 @@ button { cursor: pointer; }
 
 .ctl-key {
   font-family: var(--font-display);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.32em;
   color: var(--text-mute);
   text-transform: uppercase;
@@ -810,7 +810,7 @@ button { cursor: pointer; }
 
 .ctl-val {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-pri);
   letter-spacing: 0.04em;
 }
@@ -869,7 +869,7 @@ button { cursor: pointer; }
 
 .cell-class {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.32em;
   color: var(--text-pri);
   text-transform: uppercase;
@@ -878,7 +878,7 @@ button { cursor: pointer; }
 
 .cell-state {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.24em;
 }
 .state--ok { color: var(--accent-ok); }
@@ -903,14 +903,14 @@ button { cursor: pointer; }
 
 .axis-list dt {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.28em;
   color: var(--text-mute);
 }
 
 .axis-list dd {
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-pri);
   letter-spacing: 0.04em;
 }
@@ -918,7 +918,7 @@ button { cursor: pointer; }
 .axis-list .num { font-feature-settings: "tnum" 1; }
 .axis-list .unit {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.18em;
   color: var(--text-mute);
   margin-left: 5px;
@@ -966,7 +966,7 @@ button { cursor: pointer; }
 .compass-tick {
   position: absolute;
   font-family: var(--font-display);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.18em;
   color: var(--text-sec);
 }
@@ -1018,13 +1018,13 @@ button { cursor: pointer; }
 }
 .channel-grid dt {
   font-family: var(--font-display);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.28em;
   color: var(--text-mute);
 }
 .channel-grid dd {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: 15px;
   color: var(--text-pri);
 }
 
@@ -1032,7 +1032,7 @@ button { cursor: pointer; }
   display: flex;
   gap: 28px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.16em;
   color: var(--text-sec);
   text-transform: uppercase;
@@ -1070,7 +1070,7 @@ button { cursor: pointer; }
   display: grid;
   place-items: center;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.12em;
   color: var(--text-pri);
   transform: translate(-50%, -50%);
@@ -1092,12 +1092,12 @@ button { cursor: pointer; }
   width: 100%;
   border-collapse: collapse;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.06em;
 }
 .wp-table th {
   font-family: var(--font-display);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.28em;
   text-align: left;
   color: var(--text-mute);
@@ -1154,20 +1154,20 @@ button { cursor: pointer; }
 
 .cal-num {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.2em;
   color: var(--accent-ochre);
 }
 .cal-label {
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.22em;
   color: var(--text-pri);
   font-weight: 600;
 }
 .cal-state {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.24em;
 }
 
@@ -1185,7 +1185,7 @@ button { cursor: pointer; }
 
 .cal-prompt-class {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.28em;
   color: var(--accent-ochre);
   text-transform: uppercase;
@@ -1194,14 +1194,14 @@ button { cursor: pointer; }
 .cal-prompt-title {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 22px;
+  font-size: 26px;
   letter-spacing: 0.04em;
   color: var(--text-pri);
 }
 
 .cal-prompt-body {
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-sec);
   line-height: 1.6;
 }
@@ -1258,7 +1258,7 @@ button { cursor: pointer; }
   position: absolute;
   bottom: 18px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.22em;
   color: var(--text-mute);
   text-transform: uppercase;
@@ -1276,7 +1276,7 @@ button { cursor: pointer; }
 
 .cal-progress-key {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.32em;
   color: var(--text-mute);
 }
@@ -1295,7 +1295,7 @@ button { cursor: pointer; }
 
 .cal-progress-val {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.22em;
   color: var(--text-pri);
 }
@@ -1325,7 +1325,7 @@ button { cursor: pointer; }
   border: 1px solid var(--rule-strong);
   padding: 8px 14px;
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.28em;
   color: var(--text-sec);
   font-weight: 600;
@@ -1348,21 +1348,21 @@ button { cursor: pointer; }
 }
 .search-key {
   font-family: var(--font-display);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0.32em;
   color: var(--text-mute);
 }
 .search-input {
   flex: 1;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   color: var(--text-pri);
   letter-spacing: 0.04em;
 }
 .search-input::placeholder { color: var(--text-mute); }
 .search-meta {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-mute);
   letter-spacing: 0.18em;
 }
@@ -1384,7 +1384,7 @@ button { cursor: pointer; }
   align-items: baseline;
   padding: 7px 0;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.04em;
   border-bottom: 1px dashed var(--rule);
 }
@@ -1393,7 +1393,7 @@ button { cursor: pointer; }
 .log-ts { color: var(--text-mute); letter-spacing: 0.12em; }
 .log-tag {
   color: var(--accent-ochre);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.24em;
   text-transform: uppercase;
 }
@@ -1438,7 +1438,7 @@ button { cursor: pointer; }
   justify-content: center;
   padding: 10px 14px;
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.24em;
   color: var(--text-sec);
   cursor: pointer;
@@ -1467,14 +1467,14 @@ button { cursor: pointer; }
 
 .field-key {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.32em;
   color: var(--text-mute);
 }
 
 .field-input {
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-pri);
   background: var(--bg-overlay);
   border: 1px solid var(--rule);
@@ -1512,7 +1512,7 @@ select.field-input {
   padding-top: 11px;
   border-top: 1px solid var(--rule);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.22em;
   color: var(--text-mute);
   text-transform: uppercase;
@@ -1532,7 +1532,7 @@ select.field-input {
   align-items: baseline;
   gap: 4px;
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.18em;
   font-weight: 600;
   margin-right: 4px;
