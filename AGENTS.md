@@ -26,6 +26,20 @@ Do not introduce this shape:
 flight -> mission -> ground
 ```
 
+## Mission
+
+- `mission/` is written in Go.
+- Follow idiomatic Go: run `gofmt`, keep packages small, check errors, and prefer standard library code until a real dependency is justified.
+- Normal validation is `go test ./...` from `mission/`.
+- Mission may communicate with flight through `shared/protocol`, serial, UDP, or another explicit transport, but flight must not compile against mission.
+
+## Ground
+
+- `ground/` is written with Electrobun, Bun, and TypeScript.
+- Electrobun is not Electron. Do not use Electron APIs, Electron preload patterns, or Electron packaging assumptions.
+- Normal setup is `bun install`; validation is `bun run typecheck`.
+- Use Electrobun `BrowserWindow` and view entrypoint patterns from `electrobun.config.ts`.
+
 ## Flight Firmware
 
 - Run firmware commands from `flight/`, or use scripts under `flight/scripts/` from the repo root.

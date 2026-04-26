@@ -13,3 +13,7 @@ flight/build/
 *.log
 __pycache__/
 *.py[cod]
+mission/bin/
+ground/node_modules/
+ground/build/
+ground/artifacts/

@@ -6,18 +6,18 @@ Airyn is organized as a monorepo because flight firmware, mission logic, ground 
 
 ```txt
 airyn/
-├─ flight/
-├─ mission/
-├─ ground/
-├─ shared/
-│  ├─ protocol/
-│  ├─ config-schema/
-│  └─ math/
-├─ models/
-├─ sim/
-├─ tools/
-├─ docs/
-└─ examples/
+|- flight/
+|- mission/
+|- ground/
+|- shared/
+|  |- protocol/
+|  |- config-schema/
+|  `- math/
+|- models/
+|- sim/
+|- tools/
+|- docs/
+`- examples/
 ```
 
 ## Dependency Rules
@@ -59,7 +59,7 @@ If a shared file is included by firmware, it must stay small, deterministic, and
 - `flight/`: PlatformIO firmware built around MadFlight.
 - `models/`: aircraft settings, one directory per model.
 - `shared/protocol/`: future packet, command, and telemetry definitions.
-- `mission/`: placeholder for onboard navigation, camera, AI, and sync logic.
-- `ground/`: placeholder for control UI, planning, telemetry monitoring.
+- `mission/`: Go project for onboard navigation, camera, AI, and sync logic.
+- `ground/`: Electrobun/Bun/TypeScript project for control UI, planning, telemetry monitoring.
 - `sim/`: placeholder for fake sensors and software simulation.
 - `tools/`: placeholder for repo-level tools that are not firmware-only.

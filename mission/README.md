@@ -1,5 +1,16 @@
 # Airyn Mission
 
-Placeholder for onboard mission-computer software: navigation, camera control, mission logic, AI, and data synchronization.
+Onboard mission-computer software. This is where navigation, camera control, mission logic, AI, and data synchronization will live.
 
-This project may depend on `shared/` and communicate with `flight/`, but `flight/` must not depend on this directory.
+The mission system is written in Go and must not become a firmware dependency.
+
+## Commands
+
+```powershell
+go test ./...
+go run ./cmd/missiond
+```
+
+## Boundary
+
+`mission/` may use `../shared/` and may communicate with `flight/` over a protocol boundary, but `flight/` must not import or compile against mission code.

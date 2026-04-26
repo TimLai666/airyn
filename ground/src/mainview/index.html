@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Airyn Ground</title>
+    <link rel="stylesheet" href="index.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>Airyn Ground</h1>
+          <p id="clock">--:--:--</p>
+        </div>
+        <div class="actions">
+          <button type="button">Connect Flight</button>
+          <button type="button">Connect Mission</button>
+        </div>
+      </header>
+
+      <section class="status-grid" aria-label="connection status">
+        <article class="panel">
+          <span class="label">Flight Link</span>
+          <strong>Offline</strong>
+          <p>No telemetry stream</p>
+        </article>
+        <article class="panel">
+          <span class="label">Mission Link</span>
+          <strong>Offline</strong>
+          <p>No mission computer session</p>
+        </article>
+        <article class="panel">
+          <span class="label">Vehicle</span>
+          <strong>testbench</strong>
+          <p>Quad X profile</p>
+        </article>
+        <article class="panel">
+          <span class="label">Mode</span>
+          <strong>Rate</strong>
+          <p>Bench configuration</p>
+        </article>
+      </section>
+
+      <section class="workspace">
+        <article class="map">
+          <div class="map-grid"></div>
+          <div class="vehicle-marker"></div>
+        </article>
+
+        <aside class="side">
+          <section class="panel tall">
+            <h2>Telemetry</h2>
+            <dl>
+              <div><dt>Roll</dt><dd>0.0 deg</dd></div>
+              <div><dt>Pitch</dt><dd>0.0 deg</dd></div>
+              <div><dt>Yaw</dt><dd>0.0 deg</dd></div>
+              <div><dt>Throttle</dt><dd>0%</dd></div>
+              <div><dt>Armed</dt><dd>No</dd></div>
+            </dl>
+          </section>
+
+          <section class="panel">
+            <h2>Mission Queue</h2>
+            <ol>
+              <li>Hold position</li>
+              <li>Await vehicle link</li>
+              <li>Upload plan</li>
+            </ol>
+          </section>
+        </aside>
+      </section>
+    </main>
+    <script src="index.js"></script>
+  </body>
+</html>

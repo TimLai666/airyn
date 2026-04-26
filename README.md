@@ -4,18 +4,18 @@ Airyn is a monorepo for the flight stack:
 
 ```txt
 airyn/
-├─ flight/              # flight-controller firmware, independently buildable
-├─ mission/             # onboard mission computer software
-├─ ground/              # ground control, mission planning, telemetry UI
-├─ shared/
-│  ├─ protocol/         # packets, commands, telemetry contracts
-│  ├─ config-schema/    # model TOML format and validation rules
-│  └─ math/             # shared coordinates, attitude, unit helpers
-├─ models/              # one aircraft model per directory
-├─ sim/                 # simulator, fake sensors, test environments
-├─ tools/               # repo-level CLI and workflow tools
-├─ docs/                # architecture, wiring, model-setting docs
-└─ examples/            # example missions and configurations
+|- flight/              # flight-controller firmware, independently buildable
+|- mission/             # onboard mission computer software
+|- ground/              # ground control, mission planning, telemetry UI
+|- shared/
+|  |- protocol/         # packets, commands, telemetry contracts
+|  |- config-schema/    # model TOML format and validation rules
+|  `- math/             # shared coordinates, attitude, unit helpers
+|- models/              # one aircraft model per directory
+|- sim/                 # simulator, fake sensors, test environments
+|- tools/               # repo-level CLI and workflow tools
+|- docs/                # architecture, wiring, model-setting docs
+`- examples/            # example missions and configurations
 ```
 
 The important boundary is dependency direction:
@@ -55,15 +55,43 @@ pio run -e RP2350A
 
 PlatformIO runs `flight/tools/platformio_prebuild.py` automatically. That validates the TOML model and generates firmware-only artifacts under `flight/build/generated/`. Generated build files are ignored and should not be committed.
 
+## Mission
+
+`mission/` is the onboard mission-computer project and is written in Go.
+
+```powershell
+cd mission
+go test ./...
+go run ./cmd/missiond
+```
+
+Mission code may communicate with `flight/` through protocol boundaries, but `flight/` must not import mission code.
+
+## Ground
+
+`ground/` is the ground-control desktop project and uses Electrobun with Bun and TypeScript. Electrobun is not Electron; use Electrobun APIs and project layout.
+
+```powershell
+cd ground
+bun install
+bun run start
+```
+
+Development watch mode:
+
+```powershell
+bun run dev
+```
+
 ## Model Settings
 
 Each aircraft model lives under `models/<model-name>/`:
 
 ```txt
 models/testbench/
-├─ model.toml
-├─ wiring.md
-└─ notes.md
+|- model.toml
+|- wiring.md
+`- notes.md
 ```
 
 `model.toml` is the source of truth for:
@@ -98,7 +126,9 @@ This repo currently has a first-pass Airyn flight firmware composed around MadFl
 - MadFlight is vendored as a Git submodule under `flight/vendor/madflight`.
 - `models/testbench/model.toml` is the default test aircraft.
 - The firmware has receiver input, arming/failsafe, rate PID, Quad X/Plus mixer support, motor output, and serial debug telemetry.
-- It is not yet a proven “define a model and fly” product. The remaining work is tracked in `docs/implementation-plan.md`.
+- `mission/` has a first Go daemon skeleton.
+- `ground/` has a first Electrobun desktop app skeleton.
+- It is not yet a proven "define a model and fly" product. The remaining work is tracked in `docs/implementation-plan.md`.
 
 Read next:
 
