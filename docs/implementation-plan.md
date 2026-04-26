@@ -2,10 +2,10 @@
 
 ## Goal
 
-Airyn Flight should reach the point where adding or editing one profile:
+Airyn should reach the point where adding or editing one model:
 
 ```text
-profiles/<zone>/<model>/model.toml
+models/<model>/model.toml
 ```
 
 is enough to build firmware for that aircraft without changing C++ source code.
@@ -14,17 +14,17 @@ is enough to build firmware for that aircraft without changing C++ source code.
 
 ## Current Status
 
-- Project skeleton exists.
-- MadFlight is included as `vendor/madflight` submodule pinned to `v2.3.0`.
-- `model.toml` exists for `profiles/dev/test_model`.
-- PlatformIO pre-build generates `build/generated/active_model_config.h` from TOML.
+- Monorepo skeleton exists with independent `flight/`, placeholder `mission/`, `ground/`, `shared/`, `sim/`, `tools/`, and `examples/`.
+- MadFlight is included as `flight/vendor/madflight` submodule pinned to `v2.3.0`.
+- `model.toml` exists for `models/testbench`.
+- PlatformIO pre-build generates `flight/build/generated/active_model_config.h` from TOML.
 - Firmware now has an integrated first-pass rate-mode flight loop: receiver normalization, arming/failsafe, PID, Quad X mixer, motor output, and serial debug. It still needs PlatformIO compilation and no-prop hardware verification.
 
 ## Progress Tracker
 
 | Phase | Status | Notes |
 |---|---|---|
-| 1. TOML schema | Partial | `dev/test_model/model.toml` now covers receiver channel map, safety, rate-mode limits, motor direction/output index, and ESC details. Validation covers frame counts, motor geometry, receiver/ESC requirements, GPIO conflicts, and PID/rate/safety basics. |
+| 1. TOML schema | Partial | `models/testbench/model.toml` now covers receiver channel map, safety, rate-mode limits, motor direction/output index, and ESC details. Validation covers frame counts, motor geometry, receiver/ESC requirements, GPIO conflicts, and PID/rate/safety basics. |
 | 2. MadFlight bridge | Partial | Generator now emits structured firmware constants/arrays plus MadFlight config for I2C/SPI IMU, PPM/serial receiver pins, receiver channel map/deadband, motor output pins by `output_index`, LED, and AHRS. First-pass firmware modules consume the contract. Needs PlatformIO compile validation and more hardware variants. |
 | 3. Flight app loop | Partial | App now wires MadFlight, receiver, safety, rate PID, Quad X mixer, motor output, and telemetry in `imu_loop()`. Needs PlatformIO compile and no-prop hardware verification. |
 | 4. Receiver layer | Partial | Added wrapper around MadFlight rcl with normalized state, generated channel map, and deadband handling. Integrated in app loop. Needs hardware receiver verification. |
@@ -64,7 +64,7 @@ Tasks:
   - `rate`
   - later `angle`
 - Add PID groups for rate mode first.
-- Expand `tools/check_config.py`:
+- Expand `flight/tools/check_config.py`:
   - required keys
   - GPIO conflicts
   - frame/motor count match
@@ -101,12 +101,12 @@ Tasks:
   - OneShot125
   - DShot300
   - DShot600
-- Keep generated artifacts only under `build/generated/`.
+- Keep generated artifacts only under `flight/build/generated/`.
 
 Done when:
 
 - `pio run` is the only required build command.
-- `profiles/*/*/model.toml` contains no MadFlight raw config string.
+- `models/*/model.toml` contains no MadFlight raw config string.
 
 ## Phase 3: Flight App Main Loop
 
@@ -370,7 +370,7 @@ Checklist:
 1. Copy or create a profile.
 2. Fill `model.toml`.
 3. Fill `wiring.md`.
-4. Run `pio run`.
+4. Run `pio run` inside `flight/`, or `.\flight\scripts\build.ps1` from repo root.
 5. Upload firmware.
 6. Check serial startup output.
 7. Verify IMU data and orientation.
@@ -380,7 +380,7 @@ Checklist:
 11. Test motor direction with no propellers.
 12. Tune PID conservatively.
 13. Hover test.
-14. Freeze to `profiles/stable/`.
+14. Promote the verified settings into a named `models/<aircraft>/` directory and record the reason in `notes.md`.
 
 Done when:
 

@@ -1,6 +1,6 @@
 # 自製飛控軟體專案結構設計文件
 
-> Implementation note: the current repo uses `model.toml` as the source-of-truth profile format. Older examples in this design note that mention `model_config.h` should be read as historical planning notes; the build now generates firmware artifacts under `build/generated/` automatically during `pio run`.
+> Implementation note: the current repo is now a monorepo. `flight/` is the independent firmware project, aircraft settings live in root `models/<model>/model.toml`, and generated firmware artifacts go under `flight/build/generated/`. Older examples in this design note that mention root `profiles/`, root `vendor/madflight/`, or hand-written `model_config.h` should be read as historical planning notes.
 
 ## 1. 專案定位
 

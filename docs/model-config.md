@@ -1,179 +1,131 @@
-# Model Config
+# Model Configuration
 
-Each model profile is a directory under `profiles/`:
+Each aircraft model is a directory under repository root `models/`:
 
-```text
-profiles/dev/test_model/
-├── model.toml
-├── wiring.md
-└── notes.md
+```txt
+models/testbench/
+├─ model.toml
+├─ wiring.md
+└─ notes.md
 ```
 
-## Rules
+`model.toml` is the source of truth. Firmware builds validate it and generate MCU headers into `flight/build/generated/`.
 
-- Keep model-specific values in `model.toml`.
-- Keep physical wiring in `wiring.md`.
-- Keep test status and changes in `notes.md`.
-- Existing stable profiles are allowed to change, but change them through a dev editing copy and record the reason.
-- Do not move tested stable settings directly into source code.
+## Build Flow
 
-## Active Profile
+From repo root:
 
-PlatformIO runs `tools/platformio_prebuild.py` before every build. That hook reads `AIRYN_PROFILE`, defaults to `dev/test_model`, validates the profile, and creates build artifacts.
+```powershell
+.\flight\scripts\build.ps1
+```
 
-Normal build is one command:
+From `flight/`:
 
-```bash
+```powershell
 pio run -e RP2350A
 ```
 
-That generates firmware build artifacts:
+Select a model:
 
-```text
-build/generated/active_model_config.h
+```powershell
+$env:AIRYN_MODEL="testbench"
+cd flight
+pio run -e RP2350A
 ```
 
-The firmware includes that generated header through `src/madflight_config.h`. The generated header is an implementation detail for MCU builds; do not edit it by hand.
+Manual validation:
 
-## Validation
-
-Manual validation is optional during normal builds because `pio run` invokes it automatically:
-
-```bash
-python tools/check_config.py dev/test_model
+```powershell
+python flight\tools\check_config.py testbench
 ```
 
-The checker validates:
+Manual generation:
 
-- required model, IMU, receiver, ESC, safety, flight, motor, and PID keys
-- supported frames: `quad_x`, `quad_plus`, and future `hex_x`
-- motor `position`, `direction` (`cw` or `ccw`), unique `output_index`, and unique GPIO pins
-- receiver protocol requirements for `PPM`, `SBUS`, `CRSF`, and `ELRS`
-- receiver channel map values for throttle, roll, pitch, yaw, arm, and mode
-- ESC protocol requirements for `PWM`, `ONESHOT125`, `DSHOT300`, and `DSHOT600`
-- safety output limits, rate limits, PID groups, and GPIO conflicts
-
-## TOML Schema
-
-The profile describes the aircraft rather than raw firmware constants.
-
-```toml
-name = "dev_test_model"
-target_board = "pico2_breadboard_dev"
-frame = "quad_x"
+```powershell
+python flight\tools\build_model.py testbench
 ```
 
-Supported `frame` values are `quad_x`, `quad_plus`, and `hex_x`. `hex_x` is schema-valid only with six motors; firmware support is planned later.
+Normal PlatformIO builds run validation and generation automatically.
 
-Receiver settings include protocol wiring, channel count, channel map, deadband, and failsafe timeout:
+## Fields
 
-```toml
-[receiver]
-type = "PPM"
-pin = 8
-ppm_bus_alias = 0
-channels = 8
-deadband = 0.03
-failsafe_timeout_ms = 250
+Top-level:
 
-[receiver.channel_map]
-throttle = 1
-roll = 2
-pitch = 3
-yaw = 4
-arm = 5
-mode = 6
+- `name`: human-readable model name.
+- `target_board`: PlatformIO target board name used by this model.
+- `frame`: physical frame geometry. Current values are `quad_x`, `quad_plus`; `hex_x` is planned.
+
+`[board]`:
+
+- `madflight_board`: MadFlight board adapter header.
+- `led_pin`: optional status LED pin.
+- `led_gizmo`: LED polarity/driver option used by MadFlight.
+
+`[imu]`:
+
+- `type`: IMU chip name.
+- `bus`: `i2c` or `spi`.
+- I2C fields: `i2c_bus`, `sda_pin`, `scl_pin`, `address`.
+- SPI fields: `spi_bus`, `miso_pin`, `mosi_pin`, `sclk_pin`, `cs_pin`.
+- `int_pin`: IMU interrupt pin.
+
+`[receiver]`:
+
+- `type`: `PPM`, `SBUS`, `CRSF`, or `ELRS`.
+- PPM field: `pin`.
+- Serial fields: `serial_bus`, `rx_pin`, optional `tx_pin`.
+- `channels`: receiver channel count.
+- `deadband`: stick deadband as normalized value.
+- `failsafe_timeout_ms`: time without valid receiver input before failsafe.
+- `[receiver.channel_map]`: channel numbers for `throttle`, `roll`, `pitch`, `yaw`, `arm`, and `mode`.
+
+`[esc]`:
+
+- `protocol`: `PWM`, `ONESHOT125`, `DSHOT`, `DSHOT300`, or `DSHOT600`.
+- `pwm_rate_hz`, `min_us`, `max_us`: required for PWM-style protocols.
+- `dshot_rate`: required when `protocol = "DSHOT"`.
+- `idle_percent`: minimum spinning output while armed.
+- `min_command`, `max_command`: normalized command range.
+- `telemetry`: whether ESC telemetry is expected.
+
+`[[motors]]`:
+
+- `name`: label for notes and debugging.
+- `pin`: MCU output pin.
+- `output_index`: firmware output slot.
+- `position`: physical motor position, constrained by frame type.
+- `direction`: `cw` or `ccw`.
+
+`[safety]`:
+
+- `arm_throttle_threshold`: throttle must be below this value to arm.
+- `armed_idle_throttle`: idle output while armed.
+- `min_output`, `max_output`: output clamp.
+- `disarm_behavior`: `stop` or `idle`.
+
+`[flight]`:
+
+- `mode`: currently `rate`.
+- `[flight.rate_limits]`: `roll_dps`, `pitch_dps`, `yaw_dps`.
+
+`[pid]`:
+
+- `integrator_limit`: anti-windup clamp.
+- `output_limit`: PID output clamp.
+- `[pid.roll]`, `[pid.pitch]`, `[pid.yaw]`: `p`, `i`, `d` gains.
+
+## Frame Names
+
+- `quad_x`: four motors in X layout; common modern multirotor geometry.
+- `quad_plus`: four motors in plus layout; one motor points directly forward.
+- `hex_x`: planned six-motor X-style layout.
+
+## Generated Files
+
+The generated firmware header is an implementation detail:
+
+```txt
+flight/build/generated/active_model_config.h
 ```
 
-For PPM, `ppm_bus_alias` is used to generate the MadFlight `pin_serX_rx` alias needed by the current pinned MadFlight version. For serial receivers (`SBUS`, `CRSF`, `ELRS`), use `serial_bus`, `rx_pin`, and optional `tx_pin` instead of `pin`.
-
-ESC settings describe the output protocol and protocol-specific details:
-
-```toml
-[esc]
-protocol = "DSHOT"
-dshot_rate = 300
-telemetry = false
-idle_percent = 5.0
-min_command = 0
-max_command = 2000
-```
-
-`protocol = "PWM"` requires `pwm_rate_hz`, `min_us`, and `max_us`. `protocol = "ONESHOT125"` requires `min_us` and `max_us`. `DSHOT300` and `DSHOT600` are also accepted as protocol names.
-
-Safety and rate-mode settings are required:
-
-```toml
-[safety]
-arm_throttle_threshold = 0.05
-armed_idle_throttle = 0.06
-min_output = 0.0
-max_output = 1.0
-disarm_behavior = "stop"
-
-[flight]
-mode = "rate"
-
-[flight.rate_limits]
-roll_dps = 360.0
-pitch_dps = 360.0
-yaw_dps = 180.0
-```
-
-Each motor must define its firmware output slot, physical GPIO, frame position, and spin direction:
-
-```toml
-[[motors]]
-name = "M1"
-pin = 2
-output_index = 0
-position = "front_right"
-direction = "ccw"
-```
-
-Motor `output_index` values are zero-based MadFlight output indices and must be unique.
-
-PID settings include shared limits plus per-axis gains:
-
-```toml
-[pid]
-integrator_limit = 25.0
-output_limit = 1.0
-
-[pid.roll]
-p = 40.0
-i = 0.0
-d = 15.0
-```
-
-## Generated Header Contract
-
-`build/generated/active_model_config.h` contains compatibility macros plus structured constants for firmware modules:
-
-- motor macros: `MOTOR_COUNT`, `MOTOR1_PIN`, `MOTOR1_OUTPUT_INDEX`, `MOTOR1_POSITION_*`, `MOTOR1_DIRECTION_SIGN`
-- receiver macros: `RECEIVER_CHANNEL_*`, zero-based `RECEIVER_INDEX_*`, `RECEIVER_DEADBAND`, `RECEIVER_FAILSAFE_TIMEOUT_MS`
-- safety and flight macros: `SAFETY_*`, `FLIGHT_MODE_RATE`, `RATE_LIMIT_*_DPS`
-- ESC macros: `ESC_PROTOCOL_*`, `ESC_DSHOT_RATE`, `ESC_PWM_RATE_HZ`, `ESC_MIN_US`, `ESC_MAX_US`
-- PID macros: `PID_ROLL_*`, `PID_PITCH_*`, `PID_YAW_*`
-- C++ constants under `airyn::config`: `kMotorPins`, `kMotorOutputIndices`, `kMotorPositionIds`, `kMotorPositions`, `kMotorDirectionSigns`, `kReceiverChannelMap`, `kReceiverChannelIndices`, `kRateLimitsDps`, and `kPidGains`
-
-The generated header also contains `AIRYN_MADFLIGHT_CONFIG`, derived from TOML for IMU, receiver, channel map, motor output pins, LED, and AHRS settings.
-
-## Editing Existing Models
-
-Stable profiles are not immutable. They are old, known model configurations, and old configurations sometimes need new receiver pins, a replacement IMU, safer PID values, or corrected wiring notes.
-
-Use this flow:
-
-```bash
-python tools/edit_model.py stable/quad_x_basic --target dev/quad_x_basic_edit --reason "Change receiver pins"
-python tools/freeze_model.py dev/quad_x_basic_edit stable/quad_x_basic --update --reason "Verified receiver pin update"
-```
-
-This keeps the old profile modifiable while still leaving an edit trail in `notes.md`.
-
-## Why Not Runtime TOML Yet
-
-The firmware cannot read `profiles/.../model.toml` from the repo after it has been flashed to a microcontroller. Runtime TOML is possible, but it requires storing the file on flash filesystem or SD card, adding a C++ TOML parser, and defining boot-time failure behavior.
-
-For now, TOML is the human-edited source of truth and `build/generated/active_model_config.h` is a temporary build artifact.
+Do not edit or commit generated files. Change `models/<model>/model.toml` instead.

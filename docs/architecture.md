@@ -1,28 +1,30 @@
-# Architecture
+# Flight Architecture
 
-Airyn Flight is organized as a thin project-specific layer over MadFlight.
+`flight/` is the independently buildable firmware project. It consumes:
 
-```text
-profiles/ model settings
+- `../models/<model>/model.toml` for aircraft-specific settings
+- `flight/vendor/madflight/` for low-level flight-controller support
+- future MCU-safe contracts from `../shared/`
+
+Firmware layering:
+
+```txt
+models/<model>/model.toml
         |
-src/ Airyn startup, wrappers, safety, telemetry
+flight/tools/platformio_prebuild.py
         |
-vendor/madflight/ low-level flight-control library
+flight/build/generated/active_model_config.h
+        |
+flight/src/madflight_config.h
+        |
+flight/src/app/flight_app.cpp
+        |
+receiver -> safety -> control loop -> mixer -> motor output
 ```
 
-## Boundaries
+Rules:
 
-- `profiles/` owns model differences: pins, receiver type, IMU, motor count, and PID placeholders.
-- `src/` owns Airyn behavior: startup flow, safety policy, adapter code, telemetry, and future control logic.
-- `vendor/madflight/` owns existing low-level modules and should remain replaceable.
-
-## First Version
-
-The first firmware is intentionally small:
-
-- `src/main.cpp` exposes Arduino `setup()`, `loop()`, and MadFlight `imu_loop()`.
-- `src/app/flight_app.cpp` starts MadFlight, initializes motor outputs, and updates AHRS.
-- `profiles/dev/test_model/model.toml` is the model source of truth.
-- `tools/build_model.py` creates firmware build artifacts under `build/generated/` from that TOML.
-
-This is a smoke-test foundation, not a flight-verified controller.
+- Model differences live in `models/`, not scattered through C++.
+- Generated files live under `flight/build/` and are ignored.
+- `flight/` must not compile against `mission/` or `ground/`.
+- MadFlight stays replaceable under `flight/vendor/madflight/`.

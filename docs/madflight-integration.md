@@ -1,32 +1,31 @@
 # MadFlight Integration
 
-MadFlight is included at:
+MadFlight is included as a Git submodule:
 
-```text
-vendor/madflight/
+```txt
+flight/vendor/madflight/
 ```
 
-It is managed as a Git submodule pinned to tag `v2.3.0`.
+The firmware project depends on the submodule through PlatformIO `lib_extra_dirs = vendor` from inside `flight/`.
 
-## Why Submodule
+## Upgrade
 
-Direct clone is technically possible, but it creates an embedded Git repository inside this repo. A submodule records the exact MadFlight commit in the parent repo and keeps upgrades explicit.
+From repo root:
 
-## Upgrade Flow
-
-```bash
-git -C vendor/madflight fetch --tags
-git -C vendor/madflight checkout <tag-or-commit>
+```powershell
+git -C flight/vendor/madflight fetch --tags
+git -C flight/vendor/madflight checkout <tag-or-commit>
+cd flight
 pio run -e RP2350A
 ```
 
-The PlatformIO build validates the active profile and regenerates temporary build artifacts before compiling.
+Record the MadFlight version and any required Airyn changes in this document or the implementation plan.
 
-## Local Changes
+## Local Patches
 
-Avoid local changes in `vendor/madflight/`. If a change is unavoidable:
+Avoid local changes in `flight/vendor/madflight/`. If a patch is unavoidable, document:
 
-- Record the touched file.
-- Record why the wrapper/profile layer could not solve it.
-- Record whether the change should be proposed upstream.
-- Retest after every MadFlight upgrade.
+- why upstream behavior could not be used as-is
+- exact files changed
+- whether it should become an upstream PR
+- how to re-apply it during a MadFlight upgrade

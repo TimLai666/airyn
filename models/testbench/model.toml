@@ -1,0 +1,106 @@
+name = "testbench"
+target_board = "pico2_breadboard_dev"
+frame = "quad_x"
+
+[board]
+madflight_board = "brd/default.h"
+led_gizmo = "HIGH_IS_ON"
+led_pin = 25
+
+[imu]
+type = "MPU6050"
+bus = "i2c"
+i2c_bus = 0
+sda_pin = 4
+scl_pin = 5
+int_pin = 9
+address = 0x68
+
+[receiver]
+type = "PPM"
+pin = 8
+ppm_bus_alias = 0
+channels = 8
+deadband = 0.03
+failsafe_timeout_ms = 250
+
+[receiver.channel_map]
+throttle = 1
+roll = 2
+pitch = 3
+yaw = 4
+arm = 5
+mode = 6
+
+[esc]
+protocol = "DSHOT"
+dshot_rate = 300
+telemetry = false
+idle_percent = 5.0
+min_command = 0
+max_command = 2000
+
+[safety]
+arm_throttle_threshold = 0.05
+armed_idle_throttle = 0.06
+min_output = 0.0
+max_output = 1.0
+disarm_behavior = "stop"
+
+[flight]
+mode = "rate"
+
+[flight.rate_limits]
+roll_dps = 360.0
+pitch_dps = 360.0
+yaw_dps = 180.0
+
+[[motors]]
+name = "M1"
+pin = 2
+output_index = 0
+position = "front_right"
+direction = "ccw"
+
+[[motors]]
+name = "M2"
+pin = 3
+output_index = 1
+position = "rear_right"
+direction = "cw"
+
+[[motors]]
+name = "M3"
+pin = 6
+output_index = 2
+position = "rear_left"
+direction = "ccw"
+
+[[motors]]
+name = "M4"
+pin = 7
+output_index = 3
+position = "front_left"
+direction = "cw"
+
+[pid]
+integrator_limit = 25.0
+output_limit = 1.0
+
+[pid.roll]
+p = 40.0
+i = 0.0
+d = 15.0
+
+[pid.pitch]
+p = 40.0
+i = 0.0
+d = 15.0
+
+[pid.yaw]
+p = 30.0
+i = 0.0
+d = 0.0
+
+[madflight]
+ahr_gizmo = "MAHONY"

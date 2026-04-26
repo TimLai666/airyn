@@ -1,3 +1,3 @@
-[submodule "vendor/madflight"]
-	path = vendor/madflight
+[submodule "flight/vendor/madflight"]
+	path = flight/vendor/madflight
 	url = https://github.com/qqqlab/madflight

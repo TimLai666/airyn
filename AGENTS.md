@@ -1,45 +1,51 @@
-# AGENTS.md
+# Agent Instructions
 
-## Project Rules
+## Priority
 
-- Prioritize the implementation plan in `docs/implementation-plan.md` until the project reaches "configured model to flyable firmware".
-- Update `docs/implementation-plan.md` whenever a phase status changes, a task is completed, or scope changes.
-- Before starting feature work, check the progress tracker in `docs/implementation-plan.md` and align the change with the next unfinished phase unless the user explicitly redirects.
-- Treat `vendor/madflight/` as third-party code. Do not edit it unless the user explicitly asks for a MadFlight patch.
-- Put model-specific pins, PID values, receiver settings, and wiring notes under `profiles/`.
-- Use `model.toml` as the source-of-truth model config. Do not hand-edit generated files under `build/generated/`.
-- Use `profiles/dev/test_model/` for daily experiments.
-- Existing `profiles/stable/` models can be modified, but use a dev editing copy first unless the user explicitly asks for a direct patch.
-- For old model changes, prefer `python tools/edit_model.py stable/<name> --target dev/<name>_edit`, then write back with `python tools/freeze_model.py dev/<name>_edit stable/<name> --update --reason "..."`
-- Direct stable edits must record the reason in that profile's `notes.md`.
-- Keep `src/main.cpp` thin. Startup flow belongs in `src/app/`; reusable logic belongs in the relevant `src/*` module.
-- Normal firmware build should be one command: `pio run -e RP2350A`. PlatformIO pre-build runs profile validation and artifact generation.
-- Use `python tools/check_config.py <profile>` manually only when debugging profile data.
-- Never assume a model profile is flight-safe just because it compiles.
+The top project priority is to make Airyn reach: define a model in `models/<model>/model.toml`, build with one command, flash, calibrate, and fly safely. Use `docs/implementation-plan.md` as the active implementation plan and update progress there whenever a meaningful task is completed or the plan changes.
 
-## Build Commands
+## Monorepo Boundaries
 
-```bash
-pio run -e RP2350A
+- `flight/` is the flight-controller firmware project and must remain independently buildable.
+- `flight/` must not depend on `mission/` or `ground/`.
+- `mission/` and `ground/` may use `shared/` and may talk to each other.
+- `ground/` may connect directly to `flight/` or connect through `mission/`.
+- `shared/protocol`, `shared/config-schema`, and `shared/math` may be used across projects, but anything used by `flight/` must stay MCU-safe and avoid heavy runtime dependencies.
+
+Expected dependency direction:
+
+```txt
+shared/protocol
+     ^
+flight   mission   ground
 ```
 
-Existing model edit flow:
+Do not introduce this shape:
 
-```bash
-python tools/edit_model.py stable/quad_x_basic --target dev/quad_x_basic_edit --reason "Describe change"
-python tools/freeze_model.py dev/quad_x_basic_edit stable/quad_x_basic --update --reason "Describe verified result"
+```txt
+flight -> mission -> ground
 ```
 
-To build a non-default profile on Windows PowerShell:
+## Flight Firmware
 
-```powershell
-$env:AIRYN_PROFILE="dev/quad_x_basic_edit"; pio run -e RP2350A
-```
+- Run firmware commands from `flight/`, or use scripts under `flight/scripts/` from the repo root.
+- Normal build is one command: `.\flight\scripts\build.ps1` from repo root, or `pio run -e RP2350A` inside `flight/`.
+- PlatformIO is required for firmware builds and Arduino framework include resolution.
+- PlatformIO pre-build runs model validation and generated firmware artifact creation automatically.
+- Generated files under `flight/build/` and PlatformIO output under `flight/.pio/` are build artifacts and must not be committed.
+- Treat `flight/vendor/madflight/` as third-party code. Do not edit it unless the user explicitly asks for a MadFlight patch.
+
+## Model Settings
+
+- Model source-of-truth files live under `models/<model>/model.toml`.
+- `models/testbench/` is the daily development test model.
+- Old model settings are allowed to change; edit the TOML, wiring notes, and notes together so the model stays understandable.
+- Validate model data with `python flight/tools/check_config.py <model>`.
+- Generate firmware artifacts with `python flight/tools/build_model.py <model>` only when debugging; normal PlatformIO builds run it automatically.
 
 ## Documentation
 
-- Project structure: `docs/flight_controller_project_structure.md`
-- MadFlight integration notes: `docs/madflight-integration.md`
-- Model profile rules: `docs/model-config.md`
-- Implementation plan: `docs/implementation-plan.md`
-- Hardware wiring rules: `docs/wiring-guide.md`
+- Keep `docs/implementation-plan.md` current as implementation progresses.
+- Keep `docs/model-config.md` aligned with the TOML schema.
+- Keep `docs/new-model-bringup.md` aligned with the actual build and setup flow.
+- Keep `docs/madflight-integration.md` aligned with the pinned submodule path and version.
