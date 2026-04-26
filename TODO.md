@@ -76,8 +76,6 @@ tools/check_config.py
 
 ### 4. 把 board 從 model 拆出去
 
-等你真的有：
-
 * 第二塊板
 * custom FC PCB
 * 不同 flash 方法
