@@ -1,6 +1,7 @@
 #include "imu_adapter.h"
 
-#include <madflight.h>
+#include <ahr/ahr.h>
+#include <imu/imu.h>
 
 namespace airyn::devices {
 
