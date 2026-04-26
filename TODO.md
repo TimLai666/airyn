@@ -72,7 +72,7 @@ tools/check_config.py
 
 ---
 
-## 第二階段（有第二台機型再做）
+## 第二階段
 
 ### 4. 把 board 從 model 拆出去
 
