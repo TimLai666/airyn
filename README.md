@@ -10,7 +10,8 @@ This repo owns the project structure, model profiles, board notes, safety rules,
 - The submodule is pinned to tag `v2.3.0`.
 - Default build target is `RP2350A` for Raspberry Pi Pico 2.
 - Default model profile is `profiles/dev/test_model`.
-- The first firmware entry point is a minimal MadFlight startup smoke test, not a flight-tested controller.
+- Firmware has a first-pass rate-mode flight loop wired through MadFlight, receiver normalization, arming/failsafe, PID, Quad X mixer, motor output, and serial debug.
+- It still needs PlatformIO compilation and no-prop hardware verification before any flight attempt.
 
 ## Layout
 
@@ -117,10 +118,12 @@ Each drone or aircraft model is described by one `model.toml`. The current forma
 - Model identity: model name, target board, and frame type.
 - Board settings: MadFlight board header, LED pin, and board-level defaults.
 - IMU settings: sensor type, bus type, I2C bus, SDA/SCL pins, interrupt pin, and address.
-- Receiver settings: receiver protocol, input pin or serial bus, and channel count.
-- ESC settings: output protocol and DShot rate.
-- Motors: motor count, output pins, names, and physical positions.
-- PID placeholders: roll, pitch, and yaw gains.
+- Receiver settings: receiver protocol, input pin or serial bus, channel count, channel map, deadband, and failsafe timeout.
+- ESC settings: output protocol, DShot/PWM details, telemetry flag, and command range.
+- Safety settings: arm throttle threshold, armed idle throttle, output limits, and disarm behavior.
+- Flight settings: rate mode and max roll/pitch/yaw rates.
+- Motors: motor count, output index, GPIO pin, name, physical position, and spin direction.
+- PID settings: roll, pitch, and yaw gains.
 - MadFlight bridge settings: values needed to translate the TOML profile into MadFlight's native config.
 
 Example:
@@ -142,16 +145,52 @@ address = 0x68
 [receiver]
 type = "PPM"
 pin = 8
+ppm_bus_alias = 0
 channels = 8
+deadband = 0.03
+failsafe_timeout_ms = 250
+
+[receiver.channel_map]
+throttle = 1
+roll = 2
+pitch = 3
+yaw = 4
+arm = 5
+mode = 6
 
 [esc]
 protocol = "DSHOT"
 dshot_rate = 300
+telemetry = false
+idle_percent = 5.0
+min_command = 0
+max_command = 2000
+
+[safety]
+arm_throttle_threshold = 0.05
+armed_idle_throttle = 0.06
+min_output = 0.0
+max_output = 1.0
+disarm_behavior = "stop"
+
+[flight]
+mode = "rate"
+
+[flight.rate_limits]
+roll_dps = 360.0
+pitch_dps = 360.0
+yaw_dps = 180.0
 
 [[motors]]
 name = "M1"
 pin = 2
+output_index = 0
 position = "front_right"
+direction = "ccw"
+
+[pid]
+integrator_limit = 25.0
+output_limit = 1.0
 ```
 
 When a model is verified, freeze it into `profiles/stable/`:

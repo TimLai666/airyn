@@ -18,23 +18,23 @@ is enough to build firmware for that aircraft without changing C++ source code.
 - MadFlight is included as `vendor/madflight` submodule pinned to `v2.3.0`.
 - `model.toml` exists for `profiles/dev/test_model`.
 - PlatformIO pre-build generates `build/generated/active_model_config.h` from TOML.
-- Firmware currently starts MadFlight and AHRS, but does not yet implement a complete flight loop.
+- Firmware now has an integrated first-pass rate-mode flight loop: receiver normalization, arming/failsafe, PID, Quad X mixer, motor output, and serial debug. It still needs PlatformIO compilation and no-prop hardware verification.
 
 ## Progress Tracker
 
 | Phase | Status | Notes |
 |---|---|---|
-| 1. TOML schema | In progress | Basic `dev/test_model/model.toml` exists. Needs receiver maps, safety, modes, motor direction. |
-| 2. MadFlight bridge | In progress | Generates basic IMU, receiver, motor, LED, AHRS config. Needs serial receiver, SPI IMU, PWM options. |
-| 3. Flight app loop | Not started | Current app is a smoke test, not a full controller. |
-| 4. Receiver layer | Not started | Need normalized receiver state. |
-| 5. Safety layer | Not started | Need arming, disarming, failsafe state machine. |
-| 6. PID control | Not started | Need rate mode first. |
-| 7. Mixer layer | Not started | Need `quad_x` table from TOML motor positions/directions. |
-| 8. Motor output layer | Partial | Basic DShot/PWM init in app. Needs wrapper and protocol options. |
-| 9. Telemetry debug | Not started | Need startup config print and runtime debug. |
-| 10. Tests | Not started | Need config, mixer, safety tests. |
-| 11. Bring-up docs | Not started | Need new-model hardware validation guide. |
+| 1. TOML schema | Partial | `dev/test_model/model.toml` now covers receiver channel map, safety, rate-mode limits, motor direction/output index, and ESC details. Validation covers frame counts, motor geometry, receiver/ESC requirements, GPIO conflicts, and PID/rate/safety basics. |
+| 2. MadFlight bridge | Partial | Generator now emits structured firmware constants/arrays plus MadFlight config for I2C/SPI IMU, PPM/serial receiver pins, receiver channel map/deadband, motor output pins by `output_index`, LED, and AHRS. First-pass firmware modules consume the contract. Needs PlatformIO compile validation and more hardware variants. |
+| 3. Flight app loop | Partial | App now wires MadFlight, receiver, safety, rate PID, Quad X mixer, motor output, and telemetry in `imu_loop()`. Needs PlatformIO compile and no-prop hardware verification. |
+| 4. Receiver layer | Partial | Added wrapper around MadFlight rcl with normalized state, generated channel map, and deadband handling. Integrated in app loop. Needs hardware receiver verification. |
+| 5. Safety layer | Partial | Arming/disarming and receiver failsafe APIs added and integrated. Needs tests and hardware failsafe verification. |
+| 6. PID control | Partial | Added reusable PID class and rate-mode ControlLoop using generated PID/rate settings. Integrated in app loop. Needs tuning and tests. |
+| 7. Mixer layer | Partial | Added Quad X mixer using generated motor geometry/direction signs, output clamp, and armed idle handling. Integrated in app loop. Needs tests and motor-order verification. |
+| 8. Motor output layer | Partial | Added MotorOutput wrapper with generated output indices, DShot/PWM setup, arm state, and bulk write helpers. Integrated in app loop. Needs PlatformIO compile and no-prop output verification. |
+| 9. Telemetry debug | Partial | Serial startup/runtime debug printer added and integrated. Needs serial monitor verification on hardware. |
+| 10. Tests | Partial | Added Python config/profile tests. Still need mixer and safety tests with a C++ host or PlatformIO test setup. |
+| 11. Bring-up docs | Partial | `docs/new-model-bringup.md` checklist added. Keep updated as hardware flow evolves. |
 
 Update this table whenever implementation progress changes.
 
@@ -402,4 +402,3 @@ Debug: USB serial
 ```
 
 After this can hover safely, add SBUS/CRSF, other IMUs, other frame types, and angle mode.
-
