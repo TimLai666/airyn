@@ -4,73 +4,142 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Airyn Ground</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
   </head>
   <body>
-    <main class="shell">
-      <header class="topbar">
-        <div>
-          <h1>Airyn Ground</h1>
-          <p id="clock">--:--:--</p>
+    <div class="vignette" aria-hidden="true"></div>
+    <div class="grain" aria-hidden="true"></div>
+
+    <main class="stage">
+      <header class="masthead">
+        <div class="brand">
+          <span class="brand-mark">AIRYN</span>
+          <span class="brand-divider"></span>
+          <span class="brand-sub">GROUND CONTROL</span>
         </div>
-        <div class="actions">
-          <button type="button">Connect Flight</button>
-          <button type="button">Connect Mission</button>
+        <div class="masthead-meta">
+          <span class="slug">SECTOR · TESTBENCH</span>
+          <span class="slug-sep">/</span>
+          <span class="slug">QUAD-X · RATE</span>
+          <span class="slug-sep">/</span>
+          <time class="clock" id="clock">--:--:--</time>
+          <span class="slug-sep">/</span>
+          <span class="slug" id="date">----·--·--</span>
         </div>
       </header>
 
-      <section class="status-grid" aria-label="connection status">
-        <article class="panel">
-          <span class="label">Flight Link</span>
-          <strong>Offline</strong>
-          <p>No telemetry stream</p>
-        </article>
-        <article class="panel">
-          <span class="label">Mission Link</span>
-          <strong>Offline</strong>
-          <p>No mission computer session</p>
-        </article>
-        <article class="panel">
-          <span class="label">Vehicle</span>
-          <strong>testbench</strong>
-          <p>Quad X profile</p>
-        </article>
-        <article class="panel">
-          <span class="label">Mode</span>
-          <strong>Rate</strong>
-          <p>Bench configuration</p>
-        </article>
+      <section class="rail" aria-label="Operations status">
+        <div class="rail-item">
+          <span class="rail-key">FLIGHT LINK</span>
+          <span class="rail-val" data-state="offline"><span class="rail-dot"></span>OFFLINE</span>
+          <span class="rail-foot">no telemetry stream</span>
+        </div>
+        <div class="rail-item">
+          <span class="rail-key">MISSION LINK</span>
+          <span class="rail-val" data-state="offline"><span class="rail-dot"></span>OFFLINE</span>
+          <span class="rail-foot">awaiting handshake</span>
+        </div>
+        <div class="rail-item">
+          <span class="rail-key">VEHICLE</span>
+          <span class="rail-val">TESTBENCH</span>
+          <span class="rail-foot">quad-x · rp2350a</span>
+        </div>
+        <div class="rail-item">
+          <span class="rail-key">MODE</span>
+          <span class="rail-val">RATE</span>
+          <span class="rail-foot">bench config · safe</span>
+        </div>
+        <div class="rail-actions">
+          <button class="op-btn op-btn--primary" type="button">
+            <span class="op-btn-label">CONNECT FLIGHT</span>
+            <span class="op-btn-meta">SERIAL · UDP</span>
+          </button>
+          <button class="op-btn" type="button">
+            <span class="op-btn-label">CONNECT MISSION</span>
+            <span class="op-btn-meta">VIA MISSION</span>
+          </button>
+        </div>
       </section>
 
-      <section class="workspace">
-        <article class="map">
-          <div class="map-grid"></div>
-          <div class="vehicle-marker"></div>
+      <section class="theatre" aria-label="Operating theatre">
+        <article class="plate" aria-label="Terrain plate">
+          <div class="plate-frame" aria-hidden="true">
+            <span class="corner corner--tl"></span>
+            <span class="corner corner--tr"></span>
+            <span class="corner corner--bl"></span>
+            <span class="corner corner--br"></span>
+          </div>
+          <div class="plate-grid" aria-hidden="true"></div>
+          <div class="plate-rings" aria-hidden="true">
+            <span class="ring ring--1"></span>
+            <span class="ring ring--2"></span>
+            <span class="ring ring--3"></span>
+          </div>
+          <div class="plate-cross" aria-hidden="true"></div>
+          <div class="plate-scan" aria-hidden="true"></div>
+
+          <header class="plate-head">
+            <span class="plate-class">TERRAIN PLATE · 04</span>
+            <span class="plate-coord">24°47′12″N · 121°00′32″E</span>
+          </header>
+
+          <div class="reticle" aria-label="Vehicle marker">
+            <span class="reticle-bracket reticle-bracket--tl"></span>
+            <span class="reticle-bracket reticle-bracket--tr"></span>
+            <span class="reticle-bracket reticle-bracket--bl"></span>
+            <span class="reticle-bracket reticle-bracket--br"></span>
+            <span class="reticle-dot"></span>
+            <span class="reticle-tag">N0 · TARGET LOCK PEND</span>
+          </div>
+
+          <footer class="plate-foot">
+            <span>BEARING <em>—</em></span>
+            <span>RANGE <em>—</em></span>
+            <span>ALT <em>—</em> M</span>
+            <span>SAT <em>0/0</em></span>
+          </footer>
         </article>
 
-        <aside class="side">
-          <section class="panel tall">
-            <h2>Telemetry</h2>
-            <dl>
-              <div><dt>Roll</dt><dd>0.0 deg</dd></div>
-              <div><dt>Pitch</dt><dd>0.0 deg</dd></div>
-              <div><dt>Yaw</dt><dd>0.0 deg</dd></div>
-              <div><dt>Throttle</dt><dd>0%</dd></div>
-              <div><dt>Armed</dt><dd>No</dd></div>
+        <aside class="readout" aria-label="Vehicle telemetry">
+          <section class="readout-block">
+            <header class="readout-head">
+              <span class="readout-key">TELEMETRY</span>
+              <span class="readout-status">SAFE / DISARMED</span>
+            </header>
+            <dl class="readout-list">
+              <div><dt>ROLL</dt><dd><span class="num">+0.0</span><span class="unit">°</span></dd></div>
+              <div><dt>PITCH</dt><dd><span class="num">+0.0</span><span class="unit">°</span></dd></div>
+              <div><dt>YAW</dt><dd><span class="num">000.0</span><span class="unit">°</span></dd></div>
+              <div><dt>THR</dt><dd><span class="num">0</span><span class="unit">%</span></dd></div>
+              <div><dt>VBAT</dt><dd><span class="num">--.-</span><span class="unit">V</span></dd></div>
+              <div><dt>ARMED</dt><dd class="armed-no"><span class="num">NO</span></dd></div>
             </dl>
           </section>
 
-          <section class="panel">
-            <h2>Mission Queue</h2>
-            <ol>
-              <li>Hold position</li>
-              <li>Await vehicle link</li>
-              <li>Upload plan</li>
+          <section class="readout-block">
+            <header class="readout-head">
+              <span class="readout-key">ROUTE QUEUE</span>
+              <span class="readout-status">3 TASKS</span>
+            </header>
+            <ol class="queue-list">
+              <li><span class="queue-idx">01</span><span class="queue-name">Hold Position</span><span class="queue-state">PEND</span></li>
+              <li><span class="queue-idx">02</span><span class="queue-name">Await Vehicle Link</span><span class="queue-state">WAIT</span></li>
+              <li><span class="queue-idx">03</span><span class="queue-name">Upload Plan</span><span class="queue-state">QUEUED</span></li>
             </ol>
           </section>
         </aside>
       </section>
+
+      <footer class="ledger">
+        <span class="ledger-tag">CLASSIFICATION · OPERATIONS</span>
+        <span class="ledger-mid">No active link · System nominal · Awaiting flight controller</span>
+        <span class="ledger-ver">AIRYN GROUND v0.1.0</span>
+      </footer>
     </main>
+
     <script src="index.js"></script>
   </body>
 </html>

@@ -1,16 +1,21 @@
-const clock = document.querySelector<HTMLParagraphElement>("#clock");
+const clock = document.querySelector<HTMLTimeElement>("#clock");
+const date = document.querySelector<HTMLSpanElement>("#date");
 
-function renderClock() {
-  if (!clock) {
-    return;
-  }
-
-  clock.textContent = new Intl.DateTimeFormat("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  }).format(new Date());
+function pad(n: number): string {
+  return n.toString().padStart(2, "0");
 }
 
-renderClock();
-setInterval(renderClock, 1000);
+function render(): void {
+  const now = new Date();
+
+  if (clock) {
+    clock.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+  }
+
+  if (date) {
+    date.textContent = `${now.getFullYear()}·${pad(now.getMonth() + 1)}·${pad(now.getDate())}`;
+  }
+}
+
+render();
+setInterval(render, 1000);
