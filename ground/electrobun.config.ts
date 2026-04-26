@@ -18,7 +18,10 @@ export default {
     },
     copy: {
       "src/mainview/index.html": "views/mainview/index.html",
-      "src/mainview/index.css": "views/mainview/index.css"
+      "src/mainview/index.css": "views/mainview/index.css",
+      "src/mainview/fonts/inter.woff2": "views/mainview/fonts/inter.woff2",
+      "src/mainview/fonts/inter-tight.woff2": "views/mainview/fonts/inter-tight.woff2",
+      "src/mainview/fonts/jetbrains-mono.woff2": "views/mainview/fonts/jetbrains-mono.woff2"
     },
     mac: {
       bundleCEF: false

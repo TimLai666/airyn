@@ -4,14 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Airyn Ground</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="index.css">
   </head>
   <body>
     <div class="vignette" aria-hidden="true"></div>
-    <div class="grain" aria-hidden="true"></div>
 
     <main class="stage">
       <header class="masthead">
@@ -53,18 +49,43 @@
           <span class="rail-foot">bench config · safe</span>
         </div>
         <div class="rail-actions">
-          <button class="op-btn op-btn--primary" type="button">
+          <button class="op-btn op-btn--primary" type="button" data-action="connect-flight">
             <span class="op-btn-label">CONNECT FLIGHT</span>
             <span class="op-btn-meta">SERIAL · UDP</span>
           </button>
-          <button class="op-btn" type="button">
+          <button class="op-btn" type="button" data-action="connect-mission">
             <span class="op-btn-label">CONNECT MISSION</span>
             <span class="op-btn-meta">VIA MISSION</span>
           </button>
         </div>
       </section>
 
-      <section class="theatre" aria-label="Operating theatre">
+      <nav class="tabs" aria-label="Workstation chapters">
+        <button class="tab is-active" data-tab="map" type="button">
+          <span class="tab-num">01</span><span class="tab-name">MAP</span>
+        </button>
+        <button class="tab" data-tab="cameras" type="button">
+          <span class="tab-num">02</span><span class="tab-name">CAMERAS</span>
+        </button>
+        <button class="tab" data-tab="sensors" type="button">
+          <span class="tab-num">03</span><span class="tab-name">SENSORS</span>
+        </button>
+        <button class="tab" data-tab="mission" type="button">
+          <span class="tab-num">04</span><span class="tab-name">MISSION</span>
+        </button>
+        <button class="tab" data-tab="calibration" type="button">
+          <span class="tab-num">05</span><span class="tab-name">CALIBRATION</span>
+        </button>
+        <button class="tab" data-tab="log" type="button">
+          <span class="tab-num">06</span><span class="tab-name">LOG</span>
+        </button>
+        <button class="tab" data-tab="settings" type="button">
+          <span class="tab-num">07</span><span class="tab-name">SETTINGS</span>
+        </button>
+      </nav>
+
+      <!-- MAP VIEW -->
+      <section class="view view--map" data-view="map" aria-label="Map">
         <article class="plate" aria-label="Terrain plate">
           <div class="plate-frame" aria-hidden="true">
             <span class="corner corner--tl"></span>
@@ -133,9 +154,444 @@
         </aside>
       </section>
 
+      <!-- CAMERAS VIEW -->
+      <section class="view view--cameras" data-view="cameras" aria-label="Cameras" hidden>
+        <article class="cam cam--main" aria-label="Main camera">
+          <div class="cam-frame" aria-hidden="true">
+            <span class="corner corner--tl"></span>
+            <span class="corner corner--tr"></span>
+            <span class="corner corner--bl"></span>
+            <span class="corner corner--br"></span>
+          </div>
+          <div class="cam-noise" aria-hidden="true"></div>
+          <header class="cam-head">
+            <span class="cam-class">FEED · 01 FPV</span>
+            <span class="cam-rec"><span class="rec-dot"></span>NO SIGNAL</span>
+          </header>
+          <footer class="cam-foot">
+            <span>RES <em>1280×720</em></span>
+            <span>FPS <em>—</em></span>
+            <span>LAT <em>—</em> MS</span>
+            <span>BR <em>—</em> KBPS</span>
+          </footer>
+          <div class="cam-crosshair" aria-hidden="true"></div>
+        </article>
+
+        <aside class="cam-thumbs" aria-label="Camera selection">
+          <button class="cam cam--thumb is-active" type="button" data-cam="fpv">
+            <header class="cam-head"><span class="cam-class">01 · FPV</span></header>
+            <span class="cam-state">LIVE</span>
+          </button>
+          <button class="cam cam--thumb" type="button" data-cam="opt">
+            <header class="cam-head"><span class="cam-class">02 · GIMBAL OPT</span></header>
+            <span class="cam-state">STBY</span>
+          </button>
+          <button class="cam cam--thumb" type="button" data-cam="ir">
+            <header class="cam-head"><span class="cam-class">03 · GIMBAL IR</span></header>
+            <span class="cam-state">STBY</span>
+          </button>
+          <button class="cam cam--thumb" type="button" data-cam="payload">
+            <header class="cam-head"><span class="cam-class">04 · PAYLOAD</span></header>
+            <span class="cam-state">OFF</span>
+          </button>
+        </aside>
+
+        <footer class="cam-controls" aria-label="Camera controls">
+          <div class="cam-ctl">
+            <span class="ctl-key">GIMBAL · PITCH</span>
+            <span class="ctl-val">+00°</span>
+            <div class="ctl-track"><span class="ctl-fill" style="left:50%"></span></div>
+          </div>
+          <div class="cam-ctl">
+            <span class="ctl-key">GIMBAL · YAW</span>
+            <span class="ctl-val">+000°</span>
+            <div class="ctl-track"><span class="ctl-fill" style="left:50%"></span></div>
+          </div>
+          <div class="cam-ctl">
+            <span class="ctl-key">ZOOM</span>
+            <span class="ctl-val">1.0×</span>
+            <div class="ctl-track"><span class="ctl-fill" style="left:0%"></span></div>
+          </div>
+          <div class="cam-ctl-actions">
+            <button class="op-btn" type="button"><span class="op-btn-label">REC</span><span class="op-btn-meta">F1</span></button>
+            <button class="op-btn" type="button"><span class="op-btn-label">SNAP</span><span class="op-btn-meta">F2</span></button>
+            <button class="op-btn" type="button"><span class="op-btn-label">IR / OPT</span><span class="op-btn-meta">F3</span></button>
+          </div>
+        </footer>
+      </section>
+
+      <!-- SENSORS VIEW -->
+      <section class="view view--sensors" data-view="sensors" aria-label="Sensors" hidden>
+        <article class="cell" aria-label="Gyroscope">
+          <header class="cell-head">
+            <span class="cell-class">IMU · GYRO</span>
+            <span class="cell-state state--ok">OK</span>
+          </header>
+          <dl class="axis-list">
+            <div><dt>X</dt><dd><span class="num">+0.00</span><span class="unit">°/s</span></dd></div>
+            <div><dt>Y</dt><dd><span class="num">+0.00</span><span class="unit">°/s</span></dd></div>
+            <div><dt>Z</dt><dd><span class="num">+0.00</span><span class="unit">°/s</span></dd></div>
+          </dl>
+          <div class="trace" aria-hidden="true"><span></span><span></span><span></span></div>
+        </article>
+
+        <article class="cell" aria-label="Accelerometer">
+          <header class="cell-head">
+            <span class="cell-class">IMU · ACCEL</span>
+            <span class="cell-state state--ok">OK</span>
+          </header>
+          <dl class="axis-list">
+            <div><dt>X</dt><dd><span class="num">+0.00</span><span class="unit">g</span></dd></div>
+            <div><dt>Y</dt><dd><span class="num">+0.00</span><span class="unit">g</span></dd></div>
+            <div><dt>Z</dt><dd><span class="num">+1.00</span><span class="unit">g</span></dd></div>
+          </dl>
+          <div class="trace" aria-hidden="true"><span></span><span></span><span></span></div>
+        </article>
+
+        <article class="cell" aria-label="Magnetometer">
+          <header class="cell-head">
+            <span class="cell-class">MAG · COMPASS</span>
+            <span class="cell-state state--warn">CAL</span>
+          </header>
+          <div class="compass" aria-hidden="true">
+            <span class="compass-ring"></span>
+            <span class="compass-tick compass-n">N</span>
+            <span class="compass-tick compass-e">E</span>
+            <span class="compass-tick compass-s">S</span>
+            <span class="compass-tick compass-w">W</span>
+            <span class="compass-needle"></span>
+          </div>
+          <dl class="axis-list axis-list--compact">
+            <div><dt>HDG</dt><dd><span class="num">000</span><span class="unit">°</span></dd></div>
+            <div><dt>DEC</dt><dd><span class="num">--</span><span class="unit">°</span></dd></div>
+          </dl>
+        </article>
+
+        <article class="cell cell--gps" aria-label="GPS">
+          <header class="cell-head">
+            <span class="cell-class">GPS · POSITION</span>
+            <span class="cell-state state--off">NO FIX</span>
+          </header>
+          <dl class="axis-list axis-list--compact">
+            <div><dt>FIX</dt><dd><span class="num">NONE</span></dd></div>
+            <div><dt>SAT</dt><dd><span class="num">0</span><span class="unit">/0</span></dd></div>
+            <div><dt>HDOP</dt><dd><span class="num">--.--</span></dd></div>
+            <div><dt>LAT</dt><dd><span class="num">--.------</span></dd></div>
+            <div><dt>LON</dt><dd><span class="num">--.------</span></dd></div>
+            <div><dt>ALT</dt><dd><span class="num">--</span><span class="unit">m</span></dd></div>
+          </dl>
+        </article>
+
+        <article class="cell" aria-label="Barometer">
+          <header class="cell-head">
+            <span class="cell-class">BARO · PRESSURE</span>
+            <span class="cell-state state--ok">OK</span>
+          </header>
+          <dl class="axis-list axis-list--compact">
+            <div><dt>ALT</dt><dd><span class="num">000.0</span><span class="unit">m</span></dd></div>
+            <div><dt>VS</dt><dd><span class="num">+0.0</span><span class="unit">m/s</span></dd></div>
+            <div><dt>P</dt><dd><span class="num">1013.2</span><span class="unit">hPa</span></dd></div>
+            <div><dt>T</dt><dd><span class="num">+24.5</span><span class="unit">°C</span></dd></div>
+          </dl>
+        </article>
+
+        <article class="cell" aria-label="Battery">
+          <header class="cell-head">
+            <span class="cell-class">BATTERY · 6S</span>
+            <span class="cell-state state--off">DISCONNECTED</span>
+          </header>
+          <dl class="axis-list axis-list--compact">
+            <div><dt>VBAT</dt><dd><span class="num">--.-</span><span class="unit">V</span></dd></div>
+            <div><dt>I</dt><dd><span class="num">--.-</span><span class="unit">A</span></dd></div>
+            <div><dt>USED</dt><dd><span class="num">----</span><span class="unit">mAh</span></dd></div>
+            <div><dt>EST</dt><dd><span class="num">--</span><span class="unit">min</span></dd></div>
+          </dl>
+          <div class="bar"><span class="bar-fill" style="width:0%"></span></div>
+        </article>
+
+        <article class="cell cell--wide" aria-label="RC link">
+          <header class="cell-head">
+            <span class="cell-class">RC LINK · ELRS 2.4</span>
+            <span class="cell-state state--off">NO SIGNAL</span>
+          </header>
+          <div class="channel-grid">
+            <div><dt>AIL</dt><dd><span class="num">1500</span></dd></div>
+            <div><dt>ELE</dt><dd><span class="num">1500</span></dd></div>
+            <div><dt>THR</dt><dd><span class="num">1000</span></dd></div>
+            <div><dt>RUD</dt><dd><span class="num">1500</span></dd></div>
+            <div><dt>AUX1</dt><dd><span class="num">1000</span></dd></div>
+            <div><dt>AUX2</dt><dd><span class="num">1000</span></dd></div>
+          </div>
+          <div class="link-meta">
+            <span>RSSI <em>-- dBm</em></span>
+            <span>LQ <em>-- %</em></span>
+            <span>RATE <em>-- Hz</em></span>
+          </div>
+        </article>
+
+        <article class="cell cell--wide" aria-label="Data link">
+          <header class="cell-head">
+            <span class="cell-class">DATA LINK · TELEMETRY</span>
+            <span class="cell-state state--off">OFFLINE</span>
+          </header>
+          <div class="link-meta link-meta--col">
+            <span>TRANSPORT <em>—</em></span>
+            <span>BAUD / RATE <em>—</em></span>
+            <span>LATENCY <em>— ms</em></span>
+            <span>LOSS <em>— %</em></span>
+            <span>RX / TX <em>0 / 0 pkt</em></span>
+          </div>
+        </article>
+      </section>
+
+      <!-- MISSION VIEW -->
+      <section class="view view--mission" data-view="mission" aria-label="Mission" hidden>
+        <article class="plate plate--mission" aria-label="Mission map">
+          <div class="plate-frame" aria-hidden="true">
+            <span class="corner corner--tl"></span>
+            <span class="corner corner--tr"></span>
+            <span class="corner corner--bl"></span>
+            <span class="corner corner--br"></span>
+          </div>
+          <div class="plate-grid" aria-hidden="true"></div>
+          <div class="plate-cross" aria-hidden="true"></div>
+
+          <header class="plate-head">
+            <span class="plate-class">PLAN PLATE · DRAFT</span>
+            <span class="plate-coord">3 WAYPOINTS · 0 GEOFENCE</span>
+          </header>
+
+          <svg class="wp-path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <polyline points="22,75 50,42 78,30" stroke="rgba(209,139,72,0.55)" stroke-width="0.4" fill="none" stroke-dasharray="1.5 1.2"/>
+          </svg>
+          <span class="wp wp--1" style="left:22%; top:75%"><em>01</em></span>
+          <span class="wp wp--2" style="left:50%; top:42%"><em>02</em></span>
+          <span class="wp wp--3" style="left:78%; top:30%"><em>03</em></span>
+
+          <footer class="plate-foot">
+            <span>DIST <em>0.00 km</em></span>
+            <span>ETA <em>—</em></span>
+            <span>ALT MIN <em>—</em></span>
+            <span>ALT MAX <em>—</em></span>
+          </footer>
+        </article>
+
+        <aside class="plan" aria-label="Plan">
+          <header class="readout-head">
+            <span class="readout-key">WAYPOINTS</span>
+            <span class="readout-status">3 PLANNED</span>
+          </header>
+          <table class="wp-table">
+            <thead>
+              <tr><th>#</th><th>TYPE</th><th>LAT</th><th>LON</th><th>ALT</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>01</td><td>TAKEOFF</td><td>24.7867</td><td>121.0089</td><td>5 m</td></tr>
+              <tr><td>02</td><td>WAYPT</td><td>24.7902</td><td>121.0153</td><td>30 m</td></tr>
+              <tr><td>03</td><td>LAND</td><td>24.7918</td><td>121.0201</td><td>0 m</td></tr>
+            </tbody>
+          </table>
+
+          <div class="plan-actions">
+            <button class="op-btn" type="button"><span class="op-btn-label">NEW WP</span><span class="op-btn-meta">N</span></button>
+            <button class="op-btn op-btn--primary" type="button"><span class="op-btn-label">UPLOAD PLAN</span><span class="op-btn-meta">CTRL+U</span></button>
+            <button class="op-btn" type="button"><span class="op-btn-label">DOWNLOAD</span><span class="op-btn-meta">CTRL+D</span></button>
+            <button class="op-btn" type="button"><span class="op-btn-label">CLEAR</span><span class="op-btn-meta">CTRL+SHIFT+X</span></button>
+          </div>
+        </aside>
+      </section>
+
+      <!-- CALIBRATION VIEW -->
+      <section class="view view--calibration" data-view="calibration" aria-label="Calibration" hidden>
+        <header class="cal-steps">
+          <button class="cal-step is-active" type="button">
+            <span class="cal-num">01</span>
+            <span class="cal-label">ACCEL · 6 POSITION</span>
+            <span class="cal-state state--warn">PENDING</span>
+          </button>
+          <button class="cal-step" type="button">
+            <span class="cal-num">02</span>
+            <span class="cal-label">GYRO · STILL</span>
+            <span class="cal-state state--ok">OK</span>
+          </button>
+          <button class="cal-step" type="button">
+            <span class="cal-num">03</span>
+            <span class="cal-label">MAG · ROTATE</span>
+            <span class="cal-state state--warn">PENDING</span>
+          </button>
+          <button class="cal-step" type="button">
+            <span class="cal-num">04</span>
+            <span class="cal-label">LEVEL HORIZON</span>
+            <span class="cal-state state--off">NEEDED</span>
+          </button>
+        </header>
+
+        <article class="cal-stage">
+          <div class="cal-prompt">
+            <span class="cal-prompt-class">STEP 01 · ACCEL — 6 POSITION CALIBRATION</span>
+            <h2 class="cal-prompt-title">PLACE VEHICLE LEVEL ON A FLAT SURFACE</h2>
+            <p class="cal-prompt-body">Hold the airframe still. After capture, you will be guided through five additional orientations: nose-up, nose-down, left-side-down, right-side-down, inverted.</p>
+            <div class="cal-actions">
+              <button class="op-btn op-btn--primary" type="button"><span class="op-btn-label">CAPTURE POSITION 1/6</span><span class="op-btn-meta">SPACE</span></button>
+              <button class="op-btn" type="button"><span class="op-btn-label">SKIP STEP</span><span class="op-btn-meta">ESC</span></button>
+            </div>
+          </div>
+
+          <aside class="cal-orient" aria-hidden="true">
+            <span class="orient-corner orient-corner--tl"></span>
+            <span class="orient-corner orient-corner--tr"></span>
+            <span class="orient-corner orient-corner--bl"></span>
+            <span class="orient-corner orient-corner--br"></span>
+            <span class="orient-craft">
+              <span class="craft-arm craft-arm--n"></span>
+              <span class="craft-arm craft-arm--e"></span>
+              <span class="craft-arm craft-arm--s"></span>
+              <span class="craft-arm craft-arm--w"></span>
+              <span class="craft-core"></span>
+            </span>
+            <span class="orient-tag">ATTITUDE 0.0° / 0.0°</span>
+          </aside>
+        </article>
+
+        <footer class="cal-progress">
+          <span class="cal-progress-key">SESSION PROGRESS</span>
+          <span class="cal-progress-bar"><span class="cal-progress-fill" style="width:25%"></span></span>
+          <span class="cal-progress-val">1 OF 4 STEPS</span>
+        </footer>
+      </section>
+
+      <!-- LOG VIEW -->
+      <section class="view view--log" data-view="log" aria-label="Log" hidden>
+        <header class="log-head">
+          <div class="log-filters">
+            <button class="chip is-active" type="button">ALL</button>
+            <button class="chip" type="button">INFO</button>
+            <button class="chip" type="button">TELEM</button>
+            <button class="chip" type="button">WARN</button>
+            <button class="chip" type="button">ERROR</button>
+          </div>
+          <div class="log-search">
+            <span class="search-key">SEARCH</span>
+            <input class="search-input" type="search" placeholder="filter messages…">
+            <span class="search-meta">0 / 0</span>
+          </div>
+        </header>
+
+        <article class="console" aria-label="Console">
+          <ol class="log-list">
+            <li class="log-row log-row--info"><span class="log-ts">01:54:07</span><span class="log-tag">SYS</span><span class="log-msg">Airyn Ground started · v0.1.0</span></li>
+            <li class="log-row log-row--info"><span class="log-ts">01:54:08</span><span class="log-tag">VIEW</span><span class="log-msg">Loaded mainview · 1180×780</span></li>
+            <li class="log-row log-row--info"><span class="log-ts">01:54:08</span><span class="log-tag">LINK</span><span class="log-msg">Awaiting flight controller on serial / udp</span></li>
+            <li class="log-row log-row--warn"><span class="log-ts">01:54:09</span><span class="log-tag">SAFE</span><span class="log-msg">Pre-arm: NO IMU CAL · NO GPS FIX · NO RC LINK</span></li>
+            <li class="log-row log-row--info"><span class="log-ts">01:54:10</span><span class="log-tag">MODEL</span><span class="log-msg">Active model · dev/testbench · quad-x</span></li>
+            <li class="log-row log-row--info"><span class="log-ts">01:54:12</span><span class="log-tag">MAP</span><span class="log-msg">Terrain plate origin · 24°47′12″N 121°00′32″E</span></li>
+            <li class="log-row log-row--err"><span class="log-ts">01:54:14</span><span class="log-tag">LINK</span><span class="log-msg">No flight controller detected · idle</span></li>
+            <li class="log-row log-row--info"><span class="log-ts">01:54:18</span><span class="log-tag">UI</span><span class="log-msg">Operator view ready · awaiting connect</span></li>
+          </ol>
+        </article>
+      </section>
+
+      <!-- SETTINGS VIEW -->
+      <section class="view view--settings" data-view="settings" aria-label="Settings" hidden>
+        <article class="form-block">
+          <header class="readout-head">
+            <span class="readout-key">FLIGHT TRANSPORT</span>
+            <span class="readout-status">DISCONNECTED</span>
+          </header>
+          <div class="radio-row">
+            <label class="radio is-active"><input type="radio" name="transport" checked><span>SERIAL</span></label>
+            <label class="radio"><input type="radio" name="transport"><span>UDP</span></label>
+            <label class="radio"><input type="radio" name="transport"><span>VIA MISSION</span></label>
+          </div>
+          <div class="field-row">
+            <label class="field">
+              <span class="field-key">PORT</span>
+              <select class="field-input">
+                <option>—</option>
+                <option>COM3</option>
+                <option>COM4</option>
+                <option>COM7</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-key">BAUD</span>
+              <select class="field-input">
+                <option>921600</option>
+                <option>460800</option>
+                <option>230400</option>
+                <option>115200</option>
+              </select>
+            </label>
+          </div>
+          <div class="field-row">
+            <label class="field">
+              <span class="field-key">UDP HOST</span>
+              <input class="field-input" type="text" value="127.0.0.1">
+            </label>
+            <label class="field">
+              <span class="field-key">UDP PORT</span>
+              <input class="field-input" type="text" value="14550">
+            </label>
+            <label class="field">
+              <span class="field-key">MISSION HOST</span>
+              <input class="field-input" type="text" value="airyn-mission.local:7700">
+            </label>
+          </div>
+          <div class="form-actions">
+            <button class="op-btn op-btn--primary" type="button"><span class="op-btn-label">CONNECT</span><span class="op-btn-meta">RETURN</span></button>
+            <button class="op-btn" type="button"><span class="op-btn-label">DISCONNECT</span><span class="op-btn-meta">SHIFT+RETURN</span></button>
+          </div>
+        </article>
+
+        <article class="form-block">
+          <header class="readout-head">
+            <span class="readout-key">ACTIVE MODEL</span>
+            <span class="readout-status">dev/testbench</span>
+          </header>
+          <div class="field-row">
+            <label class="field">
+              <span class="field-key">MODEL</span>
+              <select class="field-input">
+                <option>dev/testbench</option>
+                <option>stable/quad-5inch</option>
+                <option>experimental/x-tail</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-key">BOARD</span>
+              <select class="field-input">
+                <option>rp2350a-breadboard</option>
+                <option>rp2350a-pcb-rev-a</option>
+              </select>
+            </label>
+          </div>
+        </article>
+
+        <article class="form-block">
+          <header class="readout-head">
+            <span class="readout-key">PREFERENCES</span>
+            <span class="readout-status">LOCAL</span>
+          </header>
+          <div class="field-row">
+            <label class="field">
+              <span class="field-key">UNITS</span>
+              <select class="field-input"><option>METRIC</option><option>IMPERIAL</option></select>
+            </label>
+            <label class="field">
+              <span class="field-key">TELEM RATE</span>
+              <select class="field-input"><option>50 Hz</option><option>100 Hz</option><option>200 Hz</option></select>
+            </label>
+            <label class="field">
+              <span class="field-key">MAP REFRESH</span>
+              <select class="field-input"><option>10 Hz</option><option>20 Hz</option><option>30 Hz</option></select>
+            </label>
+          </div>
+        </article>
+      </section>
+
       <footer class="ledger">
         <span class="ledger-tag">CLASSIFICATION · OPERATIONS</span>
-        <span class="ledger-mid">No active link · System nominal · Awaiting flight controller</span>
+        <span class="ledger-mid" id="ledger-msg">No active link · System nominal · Awaiting flight controller</span>
         <span class="ledger-ver">AIRYN GROUND v0.1.0</span>
       </footer>
     </main>
