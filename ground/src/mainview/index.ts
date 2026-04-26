@@ -1268,6 +1268,7 @@ function bind(): void {
   $$<HTMLButtonElement>(".lang-toggle[data-lang]").forEach((b) => {
     b.addEventListener("click", () => {
       const l = b.dataset["lang"] as Lang | undefined;
+      console.log("[airyn] lang-toggle click", { clicked: l, current: state.lang });
       if (l && l !== state.lang) setLang(l);
     });
   });

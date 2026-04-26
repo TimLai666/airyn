@@ -39,9 +39,9 @@
   --bg-overlay: #0a0d0e;
   --rule: rgba(216, 200, 176, 0.10);
   --rule-strong: rgba(216, 200, 176, 0.22);
-  --text-pri: #ece1d0;
-  --text-sec: #a89a87;
-  --text-mute: #635c52;
+  --text-pri: #f1e8da;
+  --text-sec: #beb09d;
+  --text-mute: #857a6b;
   --accent-ochre: #d18b48;
   --accent-ochre-soft: #8a5a2e;
   --accent-ochre-glow: rgba(209, 139, 72, 0.22);
@@ -56,7 +56,9 @@
   color: var(--text-pri);
   font-family: var(--font-body);
   font-size: 14px;
+  font-weight: 450;
   line-height: 1.4;
+  font-variant-ligatures: none;
 }
 
 * { box-sizing: border-box; }
@@ -83,6 +85,45 @@ button, input, select, textarea {
 }
 
 button { cursor: pointer; }
+
+/* ---------- Type weight floor ---------- */
+/* Variable woff2 + small px + Windows DPI scaling tends to render
+   weight 400 too thin on dark bg. Raise the floor for every small
+   tracked label so glyph stems stay solid. */
+.rail-key,
+.rail-foot,
+.slug,
+.tab-num,
+.cam-foot,
+.cam-state,
+.queue-state,
+.axis-list dt,
+.channel-grid dt,
+.channel-grid dd,
+.link-meta,
+.ctl-key,
+.ctl-val,
+.field-key,
+.search-key,
+.search-meta,
+.log-ts,
+.log-tag,
+.log-msg,
+.cal-progress-key,
+.cal-progress-val,
+.cal-num,
+.cal-prompt-class,
+.ledger,
+.plate-class,
+.plate-coord,
+.plate-foot,
+.reticle-tag,
+.cam-class,
+.cam-rec,
+.compass-tick,
+.brand-sub {
+  font-weight: 500;
+}
 
 /* ---------- Scrollbars ---------- */
 
@@ -1489,22 +1530,29 @@ select.field-input {
 .lang-toggles {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
+  gap: 4px;
   font-family: var(--font-display);
   font-size: 11px;
   letter-spacing: 0.18em;
   font-weight: 600;
+  margin-right: 4px;
 }
 
 .lang-toggle {
-  padding: 2px 6px;
+  padding: 4px 10px;
   color: var(--text-mute);
   font: inherit;
   letter-spacing: inherit;
-  transition: color 160ms ease;
+  font-weight: 600;
+  border: 1px solid transparent;
+  transition: color 160ms ease, border-color 160ms ease, background 160ms ease;
 }
 .lang-toggle:hover { color: var(--text-sec); }
-.lang-toggle.is-active { color: var(--accent-ochre); }
+.lang-toggle.is-active {
+  color: var(--accent-ochre);
+  border-color: var(--accent-ochre);
+  background: rgba(209, 139, 72, 0.10);
+}
 
 .lang-sep { color: var(--accent-ochre-soft); opacity: 0.6; }
 
