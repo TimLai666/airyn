@@ -26,12 +26,21 @@ Do not introduce this shape:
 flight -> mission -> ground
 ```
 
+## Version Ownership
+
+- `flight/`, `mission/`, and `ground/` maintain independent versions.
+- Current version files are `flight/VERSION`, `mission/VERSION`, and `ground/VERSION`.
+- Do not change any project version unless the user explicitly says to bump or set that specific project version.
+- Do not bundle version bumps into feature work, refactors, dependency updates, formatting, or generated changes.
+- If a version bump is requested, update only the requested project version and every required mirror for that same project, then run `python tools/check_versions.py`.
+
 ## Mission
 
 - `mission/` is written in Go.
 - Follow idiomatic Go: run `gofmt`, keep packages small, check errors, and prefer standard library code until a real dependency is justified.
 - Normal validation is `go test ./...` from `mission/`.
 - Mission may communicate with flight through `shared/protocol`, serial, UDP, or another explicit transport, but flight must not compile against mission.
+- Mission runtime version mirrors `mission/VERSION` in `mission/internal/app/version.go`.
 
 ## Ground
 
@@ -42,6 +51,7 @@ flight -> mission -> ground
 - Before adding a ground dependency, document why Bun-native functionality is insufficient in the relevant code comment, README note, or implementation plan entry.
 - Normal setup is `bun install`; validation is `bun run typecheck`.
 - Use Electrobun `BrowserWindow` and view entrypoint patterns from `electrobun.config.ts`.
+- Ground app version mirrors `ground/VERSION` in `ground/package.json` and `ground/electrobun.config.ts`.
 
 ## Flight Firmware
 
@@ -51,6 +61,7 @@ flight -> mission -> ground
 - PlatformIO pre-build runs model validation and generated firmware artifact creation automatically.
 - Generated files under `flight/build/` and PlatformIO output under `flight/.pio/` are build artifacts and must not be committed.
 - Treat `flight/vendor/madflight/` as third-party code. Do not edit it unless the user explicitly asks for a MadFlight patch.
+- Flight firmware version is stored in `flight/VERSION`.
 
 ## Model Settings
 

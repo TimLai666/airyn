@@ -83,6 +83,22 @@ Development watch mode:
 bun run dev
 ```
 
+## Versions
+
+Each major project owns its own version number:
+
+- `flight/VERSION`
+- `mission/VERSION`
+- `ground/VERSION`
+
+Version bumps are manual release decisions. Do not change these files unless the project owner explicitly decides to bump that project's version.
+
+Check mirrored versions:
+
+```powershell
+python tools\check_versions.py
+```
+
 ## Model Settings
 
 Each aircraft model lives under `models/<model-name>/`:

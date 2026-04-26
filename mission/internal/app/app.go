@@ -7,8 +7,6 @@ import (
 	"time"
 )
 
-const version = "0.1.0-dev"
-
 // Runtime describes the mission computer process state.
 type Runtime struct {
 	Version   string
@@ -18,7 +16,7 @@ type Runtime struct {
 // NewRuntime creates a mission runtime state snapshot.
 func NewRuntime(now time.Time) Runtime {
 	return Runtime{
-		Version:   version,
+		Version:   Version,
 		StartedAt: now.UTC(),
 	}
 }
