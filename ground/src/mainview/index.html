@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh">
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -14,12 +14,18 @@
         <div class="brand">
           <span class="brand-mark">AIRYN</span>
           <span class="brand-divider"></span>
-          <span class="brand-sub">GROUND CONTROL</span>
+          <span class="brand-sub" data-i18n="brand.sub">GROUND CONTROL</span>
         </div>
         <div class="masthead-meta">
-          <span class="slug">SECTOR · TESTBENCH</span>
+          <div class="lang-toggles">
+            <button class="lang-toggle is-active" type="button" data-lang="zh" data-i18n="lang.zh">中</button>
+            <span class="lang-sep">/</span>
+            <button class="lang-toggle" type="button" data-lang="en" data-i18n="lang.en">EN</button>
+          </div>
+          <span class="slug-sep">|</span>
+          <span class="slug" data-i18n="meta.sector">SECTOR · TESTBENCH</span>
           <span class="slug-sep">/</span>
-          <span class="slug">QUAD-X · RATE</span>
+          <span class="slug" data-i18n="meta.frame">QUAD-X · RATE</span>
           <span class="slug-sep">/</span>
           <time class="clock" id="clock">--:--:--</time>
           <span class="slug-sep">/</span>
@@ -27,66 +33,76 @@
         </div>
       </header>
 
-      <section class="rail" aria-label="Operations status">
-        <div class="rail-item">
-          <span class="rail-key">FLIGHT LINK</span>
-          <span class="rail-val" data-state="offline"><span class="rail-dot"></span>OFFLINE</span>
-          <span class="rail-foot">no telemetry stream</span>
+      <section class="rail">
+        <div class="rail-item" data-rail="flight">
+          <span class="rail-key" data-i18n="rail.flight.key">FLIGHT LINK</span>
+          <span class="rail-val" data-state="offline">
+            <span class="rail-dot"></span>
+            <span class="rail-val-text" data-i18n="val.offline">OFFLINE</span>
+          </span>
+          <span class="rail-foot" data-i18n="rail.flight.foot">no telemetry stream</span>
+        </div>
+        <div class="rail-item" data-rail="mission">
+          <span class="rail-key" data-i18n="rail.mission.key">MISSION LINK</span>
+          <span class="rail-val" data-state="offline">
+            <span class="rail-dot"></span>
+            <span class="rail-val-text" data-i18n="val.offline">OFFLINE</span>
+          </span>
+          <span class="rail-foot" data-i18n="rail.mission.foot">awaiting handshake</span>
         </div>
         <div class="rail-item">
-          <span class="rail-key">MISSION LINK</span>
-          <span class="rail-val" data-state="offline"><span class="rail-dot"></span>OFFLINE</span>
-          <span class="rail-foot">awaiting handshake</span>
+          <span class="rail-key" data-i18n="rail.vehicle.key">VEHICLE</span>
+          <span class="rail-val">
+            <span class="rail-val-text" data-i18n="val.testbench">TESTBENCH</span>
+          </span>
+          <span class="rail-foot" data-i18n="rail.vehicle.foot">quad-x · rp2350a</span>
         </div>
         <div class="rail-item">
-          <span class="rail-key">VEHICLE</span>
-          <span class="rail-val">TESTBENCH</span>
-          <span class="rail-foot">quad-x · rp2350a</span>
-        </div>
-        <div class="rail-item">
-          <span class="rail-key">MODE</span>
-          <span class="rail-val">RATE</span>
-          <span class="rail-foot">bench config · safe</span>
+          <span class="rail-key" data-i18n="rail.mode.key">MODE</span>
+          <span class="rail-val">
+            <span class="rail-val-text" data-i18n="val.rate">RATE</span>
+          </span>
+          <span class="rail-foot" data-i18n="rail.mode.foot">bench config · safe</span>
         </div>
         <div class="rail-actions">
           <button class="op-btn op-btn--primary" type="button" data-action="connect-flight">
-            <span class="op-btn-label">CONNECT FLIGHT</span>
-            <span class="op-btn-meta">SERIAL · UDP</span>
+            <span class="op-btn-label" data-i18n="btn.connect_flight">CONNECT FLIGHT</span>
+            <span class="op-btn-meta" data-i18n="btn.connect_flight.meta">SERIAL · UDP</span>
           </button>
           <button class="op-btn" type="button" data-action="connect-mission">
-            <span class="op-btn-label">CONNECT MISSION</span>
-            <span class="op-btn-meta">VIA MISSION</span>
+            <span class="op-btn-label" data-i18n="btn.connect_mission">CONNECT MISSION</span>
+            <span class="op-btn-meta" data-i18n="btn.connect_mission.meta">VIA MISSION</span>
           </button>
         </div>
       </section>
 
-      <nav class="tabs" aria-label="Workstation chapters">
+      <nav class="tabs">
         <button class="tab is-active" data-tab="map" type="button">
-          <span class="tab-num">01</span><span class="tab-name">MAP</span>
+          <span class="tab-num">01</span><span class="tab-name" data-i18n="tab.map">MAP</span>
         </button>
         <button class="tab" data-tab="cameras" type="button">
-          <span class="tab-num">02</span><span class="tab-name">CAMERAS</span>
+          <span class="tab-num">02</span><span class="tab-name" data-i18n="tab.cameras">CAMERAS</span>
         </button>
         <button class="tab" data-tab="sensors" type="button">
-          <span class="tab-num">03</span><span class="tab-name">SENSORS</span>
+          <span class="tab-num">03</span><span class="tab-name" data-i18n="tab.sensors">SENSORS</span>
         </button>
         <button class="tab" data-tab="mission" type="button">
-          <span class="tab-num">04</span><span class="tab-name">MISSION</span>
+          <span class="tab-num">04</span><span class="tab-name" data-i18n="tab.mission">MISSION</span>
         </button>
         <button class="tab" data-tab="calibration" type="button">
-          <span class="tab-num">05</span><span class="tab-name">CALIBRATION</span>
+          <span class="tab-num">05</span><span class="tab-name" data-i18n="tab.calibration">CALIBRATION</span>
         </button>
         <button class="tab" data-tab="log" type="button">
-          <span class="tab-num">06</span><span class="tab-name">LOG</span>
+          <span class="tab-num">06</span><span class="tab-name" data-i18n="tab.log">LOG</span>
         </button>
         <button class="tab" data-tab="settings" type="button">
-          <span class="tab-num">07</span><span class="tab-name">SETTINGS</span>
+          <span class="tab-num">07</span><span class="tab-name" data-i18n="tab.settings">SETTINGS</span>
         </button>
       </nav>
 
-      <!-- MAP VIEW -->
-      <section class="view view--map" data-view="map" aria-label="Map">
-        <article class="plate" aria-label="Terrain plate">
+      <!-- MAP -->
+      <section class="view view--map" data-view="map">
+        <article class="plate">
           <div class="plate-frame" aria-hidden="true">
             <span class="corner corner--tl"></span>
             <span class="corner corner--tr"></span>
@@ -103,60 +119,60 @@
           <div class="plate-scan" aria-hidden="true"></div>
 
           <header class="plate-head">
-            <span class="plate-class">TERRAIN PLATE · 04</span>
+            <span class="plate-class" data-i18n="plate.class">TERRAIN PLATE · 04</span>
             <span class="plate-coord">24°47′12″N · 121°00′32″E</span>
           </header>
 
-          <div class="reticle" aria-label="Vehicle marker">
+          <div class="reticle">
             <span class="reticle-bracket reticle-bracket--tl"></span>
             <span class="reticle-bracket reticle-bracket--tr"></span>
             <span class="reticle-bracket reticle-bracket--bl"></span>
             <span class="reticle-bracket reticle-bracket--br"></span>
             <span class="reticle-dot"></span>
-            <span class="reticle-tag">N0 · TARGET LOCK PEND</span>
+            <span class="reticle-tag" data-i18n="reticle.tag.pend">TARGET LOCK · PEND</span>
           </div>
 
           <footer class="plate-foot">
-            <span>BEARING <em>—</em></span>
-            <span>RANGE <em>—</em></span>
-            <span>ALT <em>—</em> M</span>
-            <span>SAT <em>0/0</em></span>
+            <span><span data-i18n="plate.foot.bearing">BEARING</span> <em data-plate="bearing">—</em></span>
+            <span><span data-i18n="plate.foot.range">RANGE</span> <em data-plate="range">—</em></span>
+            <span><span data-i18n="plate.foot.alt">ALT</span> <em data-plate="alt">—</em> M</span>
+            <span><span data-i18n="plate.foot.sat">SAT</span> <em data-plate="sat">0/0</em></span>
           </footer>
         </article>
 
-        <aside class="readout" aria-label="Vehicle telemetry">
+        <aside class="readout">
           <section class="readout-block">
             <header class="readout-head">
-              <span class="readout-key">TELEMETRY</span>
-              <span class="readout-status">SAFE / DISARMED</span>
+              <span class="readout-key" data-i18n="readout.telemetry">TELEMETRY</span>
+              <span class="readout-status" data-i18n="readout.safe_disarmed">SAFE / DISARMED</span>
             </header>
             <dl class="readout-list">
-              <div><dt>ROLL</dt><dd><span class="num">+0.0</span><span class="unit">°</span></dd></div>
-              <div><dt>PITCH</dt><dd><span class="num">+0.0</span><span class="unit">°</span></dd></div>
-              <div><dt>YAW</dt><dd><span class="num">000.0</span><span class="unit">°</span></dd></div>
-              <div><dt>THR</dt><dd><span class="num">0</span><span class="unit">%</span></dd></div>
-              <div><dt>VBAT</dt><dd><span class="num">--.-</span><span class="unit">V</span></dd></div>
-              <div><dt>ARMED</dt><dd class="armed-no"><span class="num">NO</span></dd></div>
+              <div><dt data-i18n="tel.roll">ROLL</dt><dd><span class="num" data-tel="roll">+0.0</span><span class="unit">°</span></dd></div>
+              <div><dt data-i18n="tel.pitch">PITCH</dt><dd><span class="num" data-tel="pitch">+0.0</span><span class="unit">°</span></dd></div>
+              <div><dt data-i18n="tel.yaw">YAW</dt><dd><span class="num" data-tel="yaw">000.0</span><span class="unit">°</span></dd></div>
+              <div><dt data-i18n="tel.thr">THR</dt><dd><span class="num" data-tel="thr">0</span><span class="unit">%</span></dd></div>
+              <div><dt data-i18n="tel.vbat">VBAT</dt><dd><span class="num" data-tel="vbat">--.-</span><span class="unit">V</span></dd></div>
+              <div><dt data-i18n="tel.armed">ARMED</dt><dd class="armed-no"><span class="num" data-i18n="val.armed.no">NO</span></dd></div>
             </dl>
           </section>
 
           <section class="readout-block">
             <header class="readout-head">
-              <span class="readout-key">ROUTE QUEUE</span>
-              <span class="readout-status">3 TASKS</span>
+              <span class="readout-key" data-i18n="readout.queue">ROUTE QUEUE</span>
+              <span class="readout-status">3</span>
             </header>
             <ol class="queue-list">
-              <li><span class="queue-idx">01</span><span class="queue-name">Hold Position</span><span class="queue-state">PEND</span></li>
-              <li><span class="queue-idx">02</span><span class="queue-name">Await Vehicle Link</span><span class="queue-state">WAIT</span></li>
-              <li><span class="queue-idx">03</span><span class="queue-name">Upload Plan</span><span class="queue-state">QUEUED</span></li>
+              <li><span class="queue-idx">01</span><span class="queue-name" data-i18n="queue.hold">Hold Position</span><span class="queue-state" data-i18n="queue.pend">PEND</span></li>
+              <li><span class="queue-idx">02</span><span class="queue-name" data-i18n="queue.await">Await Vehicle Link</span><span class="queue-state" data-i18n="queue.wait">WAIT</span></li>
+              <li><span class="queue-idx">03</span><span class="queue-name" data-i18n="queue.upload">Upload Plan</span><span class="queue-state" data-i18n="queue.queued">QUEUED</span></li>
             </ol>
           </section>
         </aside>
       </section>
 
-      <!-- CAMERAS VIEW -->
-      <section class="view view--cameras" data-view="cameras" aria-label="Cameras" hidden>
-        <article class="cam cam--main" aria-label="Main camera">
+      <!-- CAMERAS -->
+      <section class="view view--cameras" data-view="cameras" hidden>
+        <article class="cam cam--main">
           <div class="cam-frame" aria-hidden="true">
             <span class="corner corner--tl"></span>
             <span class="corner corner--tr"></span>
@@ -165,93 +181,96 @@
           </div>
           <div class="cam-noise" aria-hidden="true"></div>
           <header class="cam-head">
-            <span class="cam-class">FEED · 01 FPV</span>
-            <span class="cam-rec"><span class="rec-dot"></span>NO SIGNAL</span>
+            <span class="cam-class">FEED · FPV</span>
+            <span class="cam-rec">
+              <span class="rec-dot"></span>
+              <span class="cam-rec-text" data-i18n="cam.no_signal">NO SIGNAL</span>
+            </span>
           </header>
           <footer class="cam-foot">
-            <span>RES <em>1280×720</em></span>
-            <span>FPS <em>—</em></span>
-            <span>LAT <em>—</em> MS</span>
-            <span>BR <em>—</em> KBPS</span>
+            <span><span data-i18n="cam.foot.res">RES</span> <em>1280×720</em></span>
+            <span><span data-i18n="cam.foot.fps">FPS</span> <em>—</em></span>
+            <span><span data-i18n="cam.foot.lat">LATENCY</span> <em>—</em> MS</span>
+            <span><span data-i18n="cam.foot.br">BITRATE</span> <em>—</em> KBPS</span>
           </footer>
           <div class="cam-crosshair" aria-hidden="true"></div>
         </article>
 
-        <aside class="cam-thumbs" aria-label="Camera selection">
+        <aside class="cam-thumbs">
           <button class="cam cam--thumb is-active" type="button" data-cam="fpv">
-            <header class="cam-head"><span class="cam-class">01 · FPV</span></header>
-            <span class="cam-state">LIVE</span>
+            <header class="cam-head"><span class="cam-class">01 · <span data-i18n="cam.fpv">FPV</span></span></header>
+            <span class="cam-state" data-i18n="cam.live">LIVE</span>
           </button>
           <button class="cam cam--thumb" type="button" data-cam="opt">
-            <header class="cam-head"><span class="cam-class">02 · GIMBAL OPT</span></header>
-            <span class="cam-state">STBY</span>
+            <header class="cam-head"><span class="cam-class">02 · <span data-i18n="cam.opt">GIMBAL OPT</span></span></header>
+            <span class="cam-state" data-i18n="cam.stby">STBY</span>
           </button>
           <button class="cam cam--thumb" type="button" data-cam="ir">
-            <header class="cam-head"><span class="cam-class">03 · GIMBAL IR</span></header>
-            <span class="cam-state">STBY</span>
+            <header class="cam-head"><span class="cam-class">03 · <span data-i18n="cam.ir">GIMBAL IR</span></span></header>
+            <span class="cam-state" data-i18n="cam.stby">STBY</span>
           </button>
           <button class="cam cam--thumb" type="button" data-cam="payload">
-            <header class="cam-head"><span class="cam-class">04 · PAYLOAD</span></header>
-            <span class="cam-state">OFF</span>
+            <header class="cam-head"><span class="cam-class">04 · <span data-i18n="cam.payload">PAYLOAD</span></span></header>
+            <span class="cam-state" data-i18n="cam.off">OFF</span>
           </button>
         </aside>
 
-        <footer class="cam-controls" aria-label="Camera controls">
+        <footer class="cam-controls">
           <div class="cam-ctl">
-            <span class="ctl-key">GIMBAL · PITCH</span>
+            <span class="ctl-key" data-i18n="ctl.gimbal_pitch">GIMBAL · PITCH</span>
             <span class="ctl-val">+00°</span>
             <div class="ctl-track"><span class="ctl-fill" style="left:50%"></span></div>
           </div>
           <div class="cam-ctl">
-            <span class="ctl-key">GIMBAL · YAW</span>
+            <span class="ctl-key" data-i18n="ctl.gimbal_yaw">GIMBAL · YAW</span>
             <span class="ctl-val">+000°</span>
             <div class="ctl-track"><span class="ctl-fill" style="left:50%"></span></div>
           </div>
           <div class="cam-ctl">
-            <span class="ctl-key">ZOOM</span>
+            <span class="ctl-key" data-i18n="ctl.zoom">ZOOM</span>
             <span class="ctl-val">1.0×</span>
             <div class="ctl-track"><span class="ctl-fill" style="left:0%"></span></div>
           </div>
           <div class="cam-ctl-actions">
-            <button class="op-btn" type="button"><span class="op-btn-label">REC</span><span class="op-btn-meta">F1</span></button>
-            <button class="op-btn" type="button"><span class="op-btn-label">SNAP</span><span class="op-btn-meta">F2</span></button>
-            <button class="op-btn" type="button"><span class="op-btn-label">IR / OPT</span><span class="op-btn-meta">F3</span></button>
+            <button class="op-btn" type="button" data-action="rec"><span class="op-btn-label" data-i18n="btn.rec">REC</span><span class="op-btn-meta">F1</span></button>
+            <button class="op-btn" type="button"><span class="op-btn-label" data-i18n="btn.snap">SNAP</span><span class="op-btn-meta">F2</span></button>
+            <button class="op-btn" type="button" data-action="ir-opt"><span class="op-btn-label" data-i18n="btn.ir_opt">IR / OPT</span><span class="op-btn-meta">F3</span></button>
           </div>
         </footer>
       </section>
 
-      <!-- SENSORS VIEW -->
-      <section class="view view--sensors" data-view="sensors" aria-label="Sensors" hidden>
-        <article class="cell" aria-label="Gyroscope">
+      <!-- SENSORS -->
+      <section class="view view--sensors" data-view="sensors" hidden>
+        <article class="cell">
           <header class="cell-head">
-            <span class="cell-class">IMU · GYRO</span>
-            <span class="cell-state state--ok">OK</span>
+            <span class="cell-class" data-i18n="sens.gyro">IMU · GYRO</span>
+            <span class="cell-state state--ok" data-i18n="state.ok">OK</span>
           </header>
           <dl class="axis-list">
-            <div><dt>X</dt><dd><span class="num">+0.00</span><span class="unit">°/s</span></dd></div>
-            <div><dt>Y</dt><dd><span class="num">+0.00</span><span class="unit">°/s</span></dd></div>
-            <div><dt>Z</dt><dd><span class="num">+0.00</span><span class="unit">°/s</span></dd></div>
+            <div><dt>X</dt><dd><span class="num" data-sens="gyro-x">+0.00</span><span class="unit">°/s</span></dd></div>
+            <div><dt>Y</dt><dd><span class="num" data-sens="gyro-y">+0.00</span><span class="unit">°/s</span></dd></div>
+            <div><dt>Z</dt><dd><span class="num" data-sens="gyro-z">+0.00</span><span class="unit">°/s</span></dd></div>
           </dl>
           <div class="trace" aria-hidden="true"><span></span><span></span><span></span></div>
         </article>
 
-        <article class="cell" aria-label="Accelerometer">
+        <article class="cell">
           <header class="cell-head">
-            <span class="cell-class">IMU · ACCEL</span>
-            <span class="cell-state state--ok">OK</span>
+            <span class="cell-class" data-i18n="sens.accel">IMU · ACCEL</span>
+            <span class="cell-state state--ok" data-i18n="state.ok">OK</span>
           </header>
           <dl class="axis-list">
-            <div><dt>X</dt><dd><span class="num">+0.00</span><span class="unit">g</span></dd></div>
-            <div><dt>Y</dt><dd><span class="num">+0.00</span><span class="unit">g</span></dd></div>
-            <div><dt>Z</dt><dd><span class="num">+1.00</span><span class="unit">g</span></dd></div>
+            <div><dt>X</dt><dd><span class="num" data-sens="accel-x">+0.00</span><span class="unit">g</span></dd></div>
+            <div><dt>Y</dt><dd><span class="num" data-sens="accel-y">+0.00</span><span class="unit">g</span></dd></div>
+            <div><dt>Z</dt><dd><span class="num" data-sens="accel-z">+1.00</span><span class="unit">g</span></dd></div>
           </dl>
           <div class="trace" aria-hidden="true"><span></span><span></span><span></span></div>
         </article>
 
-        <article class="cell" aria-label="Magnetometer">
+        <article class="cell">
           <header class="cell-head">
-            <span class="cell-class">MAG · COMPASS</span>
-            <span class="cell-state state--warn">CAL</span>
+            <span class="cell-class" data-i18n="sens.mag">MAG · COMPASS</span>
+            <span class="cell-state state--warn" data-i18n="state.cal">CAL</span>
           </header>
           <div class="compass" aria-hidden="true">
             <span class="compass-ring"></span>
@@ -262,91 +281,91 @@
             <span class="compass-needle"></span>
           </div>
           <dl class="axis-list axis-list--compact">
-            <div><dt>HDG</dt><dd><span class="num">000</span><span class="unit">°</span></dd></div>
+            <div><dt>HDG</dt><dd><span class="num" data-sens="mag-hdg">000</span><span class="unit">°</span></dd></div>
             <div><dt>DEC</dt><dd><span class="num">--</span><span class="unit">°</span></dd></div>
           </dl>
         </article>
 
-        <article class="cell cell--gps" aria-label="GPS">
+        <article class="cell cell--gps">
           <header class="cell-head">
-            <span class="cell-class">GPS · POSITION</span>
-            <span class="cell-state state--off">NO FIX</span>
+            <span class="cell-class" data-i18n="sens.gps">GPS · POSITION</span>
+            <span class="cell-state state--off" data-i18n="state.no_fix">NO FIX</span>
           </header>
           <dl class="axis-list axis-list--compact">
-            <div><dt>FIX</dt><dd><span class="num">NONE</span></dd></div>
-            <div><dt>SAT</dt><dd><span class="num">0</span><span class="unit">/0</span></dd></div>
-            <div><dt>HDOP</dt><dd><span class="num">--.--</span></dd></div>
-            <div><dt>LAT</dt><dd><span class="num">--.------</span></dd></div>
-            <div><dt>LON</dt><dd><span class="num">--.------</span></dd></div>
-            <div><dt>ALT</dt><dd><span class="num">--</span><span class="unit">m</span></dd></div>
+            <div><dt data-i18n="gps.fix">FIX</dt><dd><span class="num" data-sens="gps-fix" data-i18n="gps.fix.none">NONE</span></dd></div>
+            <div><dt data-i18n="gps.sat">SAT</dt><dd><span class="num" data-sens="gps-sat">0/0</span></dd></div>
+            <div><dt>HDOP</dt><dd><span class="num" data-sens="gps-hdop">--.--</span></dd></div>
+            <div><dt data-i18n="gps.lat">LAT</dt><dd><span class="num" data-sens="gps-lat">--.------</span></dd></div>
+            <div><dt data-i18n="gps.lon">LON</dt><dd><span class="num" data-sens="gps-lon">--.------</span></dd></div>
+            <div><dt data-i18n="gps.alt">ALT</dt><dd><span class="num" data-sens="gps-alt">--</span><span class="unit">m</span></dd></div>
           </dl>
         </article>
 
-        <article class="cell" aria-label="Barometer">
+        <article class="cell">
           <header class="cell-head">
-            <span class="cell-class">BARO · PRESSURE</span>
-            <span class="cell-state state--ok">OK</span>
+            <span class="cell-class" data-i18n="sens.baro">BARO · PRESSURE</span>
+            <span class="cell-state state--ok" data-i18n="state.ok">OK</span>
           </header>
           <dl class="axis-list axis-list--compact">
-            <div><dt>ALT</dt><dd><span class="num">000.0</span><span class="unit">m</span></dd></div>
-            <div><dt>VS</dt><dd><span class="num">+0.0</span><span class="unit">m/s</span></dd></div>
-            <div><dt>P</dt><dd><span class="num">1013.2</span><span class="unit">hPa</span></dd></div>
-            <div><dt>T</dt><dd><span class="num">+24.5</span><span class="unit">°C</span></dd></div>
+            <div><dt data-i18n="baro.alt">ALT</dt><dd><span class="num" data-sens="baro-alt">000.0</span><span class="unit">m</span></dd></div>
+            <div><dt data-i18n="baro.vs">VS</dt><dd><span class="num" data-sens="baro-vs">+0.0</span><span class="unit">m/s</span></dd></div>
+            <div><dt data-i18n="baro.p">P</dt><dd><span class="num" data-sens="baro-p">1013.2</span><span class="unit">hPa</span></dd></div>
+            <div><dt data-i18n="baro.t">T</dt><dd><span class="num" data-sens="baro-t">+24.5</span><span class="unit">°C</span></dd></div>
           </dl>
         </article>
 
-        <article class="cell" aria-label="Battery">
+        <article class="cell">
           <header class="cell-head">
-            <span class="cell-class">BATTERY · 6S</span>
-            <span class="cell-state state--off">DISCONNECTED</span>
+            <span class="cell-class" data-i18n="sens.battery">BATTERY · 6S</span>
+            <span class="cell-state state--off" data-i18n="state.disconnected">DISCONNECTED</span>
           </header>
           <dl class="axis-list axis-list--compact">
-            <div><dt>VBAT</dt><dd><span class="num">--.-</span><span class="unit">V</span></dd></div>
-            <div><dt>I</dt><dd><span class="num">--.-</span><span class="unit">A</span></dd></div>
-            <div><dt>USED</dt><dd><span class="num">----</span><span class="unit">mAh</span></dd></div>
-            <div><dt>EST</dt><dd><span class="num">--</span><span class="unit">min</span></dd></div>
+            <div><dt data-i18n="bat.vbat">VBAT</dt><dd><span class="num" data-sens="bat-vbat">--.-</span><span class="unit">V</span></dd></div>
+            <div><dt data-i18n="bat.i">I</dt><dd><span class="num" data-sens="bat-i">--.-</span><span class="unit">A</span></dd></div>
+            <div><dt data-i18n="bat.used">USED</dt><dd><span class="num" data-sens="bat-used">----</span><span class="unit">mAh</span></dd></div>
+            <div><dt data-i18n="bat.est">EST</dt><dd><span class="num" data-sens="bat-est">--</span><span class="unit">min</span></dd></div>
           </dl>
-          <div class="bar"><span class="bar-fill" style="width:0%"></span></div>
+          <div class="bar"><span class="bar-fill" data-sens="bat-bar" style="width:0%"></span></div>
         </article>
 
-        <article class="cell cell--wide" aria-label="RC link">
+        <article class="cell cell--wide">
           <header class="cell-head">
-            <span class="cell-class">RC LINK · ELRS 2.4</span>
-            <span class="cell-state state--off">NO SIGNAL</span>
+            <span class="cell-class" data-i18n="sens.rc">RC LINK · ELRS 2.4</span>
+            <span class="cell-state state--off" data-sens="rc-state" data-i18n="state.no_signal">NO SIGNAL</span>
           </header>
           <div class="channel-grid">
-            <div><dt>AIL</dt><dd><span class="num">1500</span></dd></div>
-            <div><dt>ELE</dt><dd><span class="num">1500</span></dd></div>
-            <div><dt>THR</dt><dd><span class="num">1000</span></dd></div>
-            <div><dt>RUD</dt><dd><span class="num">1500</span></dd></div>
+            <div><dt data-i18n="rc.ail">AIL</dt><dd><span class="num" data-sens="rc-ail">1500</span></dd></div>
+            <div><dt data-i18n="rc.ele">ELE</dt><dd><span class="num" data-sens="rc-ele">1500</span></dd></div>
+            <div><dt data-i18n="rc.thr">THR</dt><dd><span class="num" data-sens="rc-thr">1000</span></dd></div>
+            <div><dt data-i18n="rc.rud">RUD</dt><dd><span class="num" data-sens="rc-rud">1500</span></dd></div>
             <div><dt>AUX1</dt><dd><span class="num">1000</span></dd></div>
             <div><dt>AUX2</dt><dd><span class="num">1000</span></dd></div>
           </div>
           <div class="link-meta">
-            <span>RSSI <em>-- dBm</em></span>
-            <span>LQ <em>-- %</em></span>
-            <span>RATE <em>-- Hz</em></span>
+            <span>RSSI <em data-sens="rc-rssi">-- dBm</em></span>
+            <span>LQ <em data-sens="rc-lq">-- %</em></span>
+            <span><span data-i18n="data.baud">RATE</span> <em data-sens="rc-rate">-- Hz</em></span>
           </div>
         </article>
 
-        <article class="cell cell--wide" aria-label="Data link">
+        <article class="cell cell--wide">
           <header class="cell-head">
-            <span class="cell-class">DATA LINK · TELEMETRY</span>
-            <span class="cell-state state--off">OFFLINE</span>
+            <span class="cell-class" data-i18n="sens.data">DATA LINK · TELEMETRY</span>
+            <span class="cell-state state--off" data-sens="data-state" data-i18n="state.disconnected">OFFLINE</span>
           </header>
           <div class="link-meta link-meta--col">
-            <span>TRANSPORT <em>—</em></span>
-            <span>BAUD / RATE <em>—</em></span>
-            <span>LATENCY <em>— ms</em></span>
-            <span>LOSS <em>— %</em></span>
-            <span>RX / TX <em>0 / 0 pkt</em></span>
+            <span><span data-i18n="data.transport">TRANSPORT</span> <em data-sens="data-transport">—</em></span>
+            <span><span data-i18n="data.baud">BAUD / RATE</span> <em data-sens="data-baud">—</em></span>
+            <span><span data-i18n="data.latency">LATENCY</span> <em data-sens="data-latency">— ms</em></span>
+            <span><span data-i18n="data.loss">LOSS</span> <em data-sens="data-loss">— %</em></span>
+            <span><span data-i18n="data.rxtx">RX / TX</span> <em data-sens="data-rxtx">0 / 0</em></span>
           </div>
         </article>
       </section>
 
-      <!-- MISSION VIEW -->
-      <section class="view view--mission" data-view="mission" aria-label="Mission" hidden>
-        <article class="plate plate--mission" aria-label="Mission map">
+      <!-- MISSION -->
+      <section class="view view--mission" data-view="mission" hidden>
+        <article class="plate plate--mission">
           <div class="plate-frame" aria-hidden="true">
             <span class="corner corner--tl"></span>
             <span class="corner corner--tr"></span>
@@ -357,8 +376,8 @@
           <div class="plate-cross" aria-hidden="true"></div>
 
           <header class="plate-head">
-            <span class="plate-class">PLAN PLATE · DRAFT</span>
-            <span class="plate-coord">3 WAYPOINTS · 0 GEOFENCE</span>
+            <span class="plate-class" data-i18n="mission.plate">PLAN PLATE · DRAFT</span>
+            <span class="plate-coord" data-mission="summary">3 WAYPOINTS · 0 GEOFENCE</span>
           </header>
 
           <svg class="wp-path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
@@ -369,60 +388,62 @@
           <span class="wp wp--3" style="left:78%; top:30%"><em>03</em></span>
 
           <footer class="plate-foot">
-            <span>DIST <em>0.00 km</em></span>
-            <span>ETA <em>—</em></span>
-            <span>ALT MIN <em>—</em></span>
-            <span>ALT MAX <em>—</em></span>
+            <span><span data-i18n="mission.foot.dist">DIST</span> <em>0.00 km</em></span>
+            <span><span data-i18n="mission.foot.eta">ETA</span> <em>—</em></span>
+            <span><span data-i18n="mission.foot.alt_min">ALT MIN</span> <em>—</em></span>
+            <span><span data-i18n="mission.foot.alt_max">ALT MAX</span> <em>—</em></span>
           </footer>
         </article>
 
-        <aside class="plan" aria-label="Plan">
+        <aside class="plan">
           <header class="readout-head">
-            <span class="readout-key">WAYPOINTS</span>
-            <span class="readout-status">3 PLANNED</span>
+            <span class="readout-key" data-i18n="mission.waypoints">WAYPOINTS</span>
+            <span class="readout-status" data-mission="planned">3 PLANNED</span>
           </header>
           <table class="wp-table">
             <thead>
-              <tr><th>#</th><th>TYPE</th><th>LAT</th><th>LON</th><th>ALT</th></tr>
+              <tr>
+                <th data-i18n="mission.col.idx">#</th>
+                <th data-i18n="mission.col.type">TYPE</th>
+                <th data-i18n="mission.col.lat">LAT</th>
+                <th data-i18n="mission.col.lon">LON</th>
+                <th data-i18n="mission.col.alt">ALT</th>
+              </tr>
             </thead>
-            <tbody>
-              <tr><td>01</td><td>TAKEOFF</td><td>24.7867</td><td>121.0089</td><td>5 m</td></tr>
-              <tr><td>02</td><td>WAYPT</td><td>24.7902</td><td>121.0153</td><td>30 m</td></tr>
-              <tr><td>03</td><td>LAND</td><td>24.7918</td><td>121.0201</td><td>0 m</td></tr>
-            </tbody>
+            <tbody></tbody>
           </table>
 
           <div class="plan-actions">
-            <button class="op-btn" type="button"><span class="op-btn-label">NEW WP</span><span class="op-btn-meta">N</span></button>
-            <button class="op-btn op-btn--primary" type="button"><span class="op-btn-label">UPLOAD PLAN</span><span class="op-btn-meta">CTRL+U</span></button>
-            <button class="op-btn" type="button"><span class="op-btn-label">DOWNLOAD</span><span class="op-btn-meta">CTRL+D</span></button>
-            <button class="op-btn" type="button"><span class="op-btn-label">CLEAR</span><span class="op-btn-meta">CTRL+SHIFT+X</span></button>
+            <button class="op-btn" type="button" data-action="wp-new"><span class="op-btn-label" data-i18n="btn.new_wp">NEW WP</span><span class="op-btn-meta">N</span></button>
+            <button class="op-btn op-btn--primary" type="button" data-action="wp-upload"><span class="op-btn-label" data-i18n="btn.upload">UPLOAD PLAN</span><span class="op-btn-meta">CTRL+U</span></button>
+            <button class="op-btn" type="button"><span class="op-btn-label" data-i18n="btn.download">DOWNLOAD</span><span class="op-btn-meta">CTRL+D</span></button>
+            <button class="op-btn" type="button" data-action="wp-clear"><span class="op-btn-label" data-i18n="btn.clear">CLEAR</span><span class="op-btn-meta">CTRL+SHIFT+X</span></button>
           </div>
         </aside>
       </section>
 
-      <!-- CALIBRATION VIEW -->
-      <section class="view view--calibration" data-view="calibration" aria-label="Calibration" hidden>
+      <!-- CALIBRATION -->
+      <section class="view view--calibration" data-view="calibration" hidden>
         <header class="cal-steps">
-          <button class="cal-step is-active" type="button">
+          <button class="cal-step is-active" type="button" data-cal-step="1">
             <span class="cal-num">01</span>
-            <span class="cal-label">ACCEL · 6 POSITION</span>
-            <span class="cal-state state--warn">PENDING</span>
+            <span class="cal-label" data-i18n="cal.step1">ACCEL · 6 POSITION</span>
+            <span class="cal-state state--warn" data-i18n="cal.state.pending">PENDING</span>
           </button>
-          <button class="cal-step" type="button">
+          <button class="cal-step" type="button" data-cal-step="2">
             <span class="cal-num">02</span>
-            <span class="cal-label">GYRO · STILL</span>
-            <span class="cal-state state--ok">OK</span>
+            <span class="cal-label" data-i18n="cal.step2">GYRO · STILL</span>
+            <span class="cal-state state--warn" data-i18n="cal.state.pending">PENDING</span>
           </button>
-          <button class="cal-step" type="button">
+          <button class="cal-step" type="button" data-cal-step="3">
             <span class="cal-num">03</span>
-            <span class="cal-label">MAG · ROTATE</span>
-            <span class="cal-state state--warn">PENDING</span>
+            <span class="cal-label" data-i18n="cal.step3">MAG · ROTATE</span>
+            <span class="cal-state state--warn" data-i18n="cal.state.pending">PENDING</span>
           </button>
-          <button class="cal-step" type="button">
+          <button class="cal-step" type="button" data-cal-step="4">
             <span class="cal-num">04</span>
-            <span class="cal-label">LEVEL HORIZON</span>
-            <span class="cal-state state--off">NEEDED</span>
+            <span class="cal-label" data-i18n="cal.step4">LEVEL HORIZON</span>
+            <span class="cal-state state--warn" data-i18n="cal.state.pending">PENDING</span>
           </button>
         </header>
 
@@ -430,10 +451,10 @@
           <div class="cal-prompt">
             <span class="cal-prompt-class">STEP 01 · ACCEL — 6 POSITION CALIBRATION</span>
             <h2 class="cal-prompt-title">PLACE VEHICLE LEVEL ON A FLAT SURFACE</h2>
-            <p class="cal-prompt-body">Hold the airframe still. After capture, you will be guided through five additional orientations: nose-up, nose-down, left-side-down, right-side-down, inverted.</p>
+            <p class="cal-prompt-body">Hold the airframe still. After capture, you will be guided through five additional orientations.</p>
             <div class="cal-actions">
-              <button class="op-btn op-btn--primary" type="button"><span class="op-btn-label">CAPTURE POSITION 1/6</span><span class="op-btn-meta">SPACE</span></button>
-              <button class="op-btn" type="button"><span class="op-btn-label">SKIP STEP</span><span class="op-btn-meta">ESC</span></button>
+              <button class="op-btn op-btn--primary" type="button" data-action="cal-capture"><span class="op-btn-label">CAPTURE POSITION 1/6</span><span class="op-btn-meta">SPACE</span></button>
+              <button class="op-btn" type="button" data-action="cal-skip"><span class="op-btn-label" data-i18n="cal.skip">SKIP STEP</span><span class="op-btn-meta">ESC</span></button>
             </div>
           </div>
 
@@ -454,144 +475,130 @@
         </article>
 
         <footer class="cal-progress">
-          <span class="cal-progress-key">SESSION PROGRESS</span>
-          <span class="cal-progress-bar"><span class="cal-progress-fill" style="width:25%"></span></span>
-          <span class="cal-progress-val">1 OF 4 STEPS</span>
+          <span class="cal-progress-key" data-i18n="cal.session">SESSION PROGRESS</span>
+          <span class="cal-progress-bar"><span class="cal-progress-fill" style="width:0%"></span></span>
+          <span class="cal-progress-val">0 / 4</span>
         </footer>
       </section>
 
-      <!-- LOG VIEW -->
-      <section class="view view--log" data-view="log" aria-label="Log" hidden>
+      <!-- LOG -->
+      <section class="view view--log" data-view="log" hidden>
         <header class="log-head">
           <div class="log-filters">
-            <button class="chip is-active" type="button">ALL</button>
-            <button class="chip" type="button">INFO</button>
-            <button class="chip" type="button">TELEM</button>
-            <button class="chip" type="button">WARN</button>
-            <button class="chip" type="button">ERROR</button>
+            <button class="chip is-active" type="button" data-filter="all" data-i18n="chip.all">ALL</button>
+            <button class="chip" type="button" data-filter="info" data-i18n="chip.info">INFO</button>
+            <button class="chip" type="button" data-filter="telem" data-i18n="chip.telem">TELEM</button>
+            <button class="chip" type="button" data-filter="warn" data-i18n="chip.warn">WARN</button>
+            <button class="chip" type="button" data-filter="err" data-i18n="chip.error">ERROR</button>
           </div>
           <div class="log-search">
-            <span class="search-key">SEARCH</span>
-            <input class="search-input" type="search" placeholder="filter messages…">
+            <span class="search-key" data-i18n="log.search">SEARCH</span>
+            <input class="search-input" type="search" data-i18n-placeholder="log.placeholder">
             <span class="search-meta">0 / 0</span>
           </div>
         </header>
 
-        <article class="console" aria-label="Console">
-          <ol class="log-list">
-            <li class="log-row log-row--info"><span class="log-ts">01:54:07</span><span class="log-tag">SYS</span><span class="log-msg">Airyn Ground started · v0.1.0</span></li>
-            <li class="log-row log-row--info"><span class="log-ts">01:54:08</span><span class="log-tag">VIEW</span><span class="log-msg">Loaded mainview · 1180×780</span></li>
-            <li class="log-row log-row--info"><span class="log-ts">01:54:08</span><span class="log-tag">LINK</span><span class="log-msg">Awaiting flight controller on serial / udp</span></li>
-            <li class="log-row log-row--warn"><span class="log-ts">01:54:09</span><span class="log-tag">SAFE</span><span class="log-msg">Pre-arm: NO IMU CAL · NO GPS FIX · NO RC LINK</span></li>
-            <li class="log-row log-row--info"><span class="log-ts">01:54:10</span><span class="log-tag">MODEL</span><span class="log-msg">Active model · dev/testbench · quad-x</span></li>
-            <li class="log-row log-row--info"><span class="log-ts">01:54:12</span><span class="log-tag">MAP</span><span class="log-msg">Terrain plate origin · 24°47′12″N 121°00′32″E</span></li>
-            <li class="log-row log-row--err"><span class="log-ts">01:54:14</span><span class="log-tag">LINK</span><span class="log-msg">No flight controller detected · idle</span></li>
-            <li class="log-row log-row--info"><span class="log-ts">01:54:18</span><span class="log-tag">UI</span><span class="log-msg">Operator view ready · awaiting connect</span></li>
-          </ol>
+        <article class="console">
+          <ol class="log-list"></ol>
         </article>
       </section>
 
-      <!-- SETTINGS VIEW -->
-      <section class="view view--settings" data-view="settings" aria-label="Settings" hidden>
+      <!-- SETTINGS -->
+      <section class="view view--settings" data-view="settings" hidden>
         <article class="form-block">
           <header class="readout-head">
-            <span class="readout-key">FLIGHT TRANSPORT</span>
-            <span class="readout-status">DISCONNECTED</span>
+            <span class="readout-key" data-i18n="settings.transport">FLIGHT TRANSPORT</span>
+            <span class="readout-status state--off" data-status="transport" data-i18n="state.disconnected">DISCONNECTED</span>
           </header>
           <div class="radio-row">
-            <label class="radio is-active"><input type="radio" name="transport" checked><span>SERIAL</span></label>
-            <label class="radio"><input type="radio" name="transport"><span>UDP</span></label>
-            <label class="radio"><input type="radio" name="transport"><span>VIA MISSION</span></label>
+            <label class="radio is-active" data-transport="serial"><input type="radio" name="transport" checked><span data-i18n="transport.serial">SERIAL</span></label>
+            <label class="radio" data-transport="udp"><input type="radio" name="transport"><span data-i18n="transport.udp">UDP</span></label>
+            <label class="radio" data-transport="mission"><input type="radio" name="transport"><span data-i18n="transport.via_mission">VIA MISSION</span></label>
           </div>
           <div class="field-row">
             <label class="field">
-              <span class="field-key">PORT</span>
-              <select class="field-input">
-                <option>—</option>
-                <option>COM3</option>
-                <option>COM4</option>
-                <option>COM7</option>
-              </select>
+              <span class="field-key" data-i18n="field.port">PORT</span>
+              <select class="field-input"><option>—</option><option>COM3</option><option>COM4</option><option>COM7</option></select>
             </label>
             <label class="field">
-              <span class="field-key">BAUD</span>
-              <select class="field-input">
-                <option>921600</option>
-                <option>460800</option>
-                <option>230400</option>
-                <option>115200</option>
-              </select>
+              <span class="field-key" data-i18n="field.baud">BAUD</span>
+              <select class="field-input"><option>921600</option><option>460800</option><option>230400</option><option>115200</option></select>
             </label>
           </div>
           <div class="field-row">
             <label class="field">
-              <span class="field-key">UDP HOST</span>
+              <span class="field-key" data-i18n="field.udp_host">UDP HOST</span>
               <input class="field-input" type="text" value="127.0.0.1">
             </label>
             <label class="field">
-              <span class="field-key">UDP PORT</span>
+              <span class="field-key" data-i18n="field.udp_port">UDP PORT</span>
               <input class="field-input" type="text" value="14550">
             </label>
             <label class="field">
-              <span class="field-key">MISSION HOST</span>
+              <span class="field-key" data-i18n="field.mission_host">MISSION HOST</span>
               <input class="field-input" type="text" value="airyn-mission.local:7700">
             </label>
           </div>
           <div class="form-actions">
-            <button class="op-btn op-btn--primary" type="button"><span class="op-btn-label">CONNECT</span><span class="op-btn-meta">RETURN</span></button>
-            <button class="op-btn" type="button"><span class="op-btn-label">DISCONNECT</span><span class="op-btn-meta">SHIFT+RETURN</span></button>
+            <button class="op-btn op-btn--primary" type="button" data-action="settings-connect">
+              <span class="op-btn-label" data-i18n="btn.connect">CONNECT</span>
+              <span class="op-btn-meta" data-i18n="btn.connect.meta">RETURN</span>
+            </button>
+            <button class="op-btn" type="button" data-action="settings-disconnect">
+              <span class="op-btn-label" data-i18n="btn.disconnect">DISCONNECT</span>
+              <span class="op-btn-meta" data-i18n="btn.disconnect.meta">SHIFT+RETURN</span>
+            </button>
           </div>
         </article>
 
         <article class="form-block">
           <header class="readout-head">
-            <span class="readout-key">ACTIVE MODEL</span>
+            <span class="readout-key" data-i18n="settings.model">ACTIVE MODEL</span>
             <span class="readout-status">dev/testbench</span>
           </header>
           <div class="field-row">
             <label class="field">
-              <span class="field-key">MODEL</span>
-              <select class="field-input">
-                <option>dev/testbench</option>
-                <option>stable/quad-5inch</option>
-                <option>experimental/x-tail</option>
-              </select>
+              <span class="field-key" data-i18n="field.model">MODEL</span>
+              <select class="field-input"><option>dev/testbench</option><option>stable/quad-5inch</option><option>experimental/x-tail</option></select>
             </label>
             <label class="field">
-              <span class="field-key">BOARD</span>
-              <select class="field-input">
-                <option>rp2350a-breadboard</option>
-                <option>rp2350a-pcb-rev-a</option>
-              </select>
+              <span class="field-key" data-i18n="field.board">BOARD</span>
+              <select class="field-input"><option>rp2350a-breadboard</option><option>rp2350a-pcb-rev-a</option></select>
             </label>
           </div>
         </article>
 
         <article class="form-block">
           <header class="readout-head">
-            <span class="readout-key">PREFERENCES</span>
-            <span class="readout-status">LOCAL</span>
+            <span class="readout-key" data-i18n="settings.preferences">PREFERENCES</span>
+            <span class="readout-status" data-i18n="settings.local">LOCAL</span>
           </header>
           <div class="field-row">
             <label class="field">
-              <span class="field-key">UNITS</span>
-              <select class="field-input"><option>METRIC</option><option>IMPERIAL</option></select>
+              <span class="field-key" data-i18n="field.lang">INTERFACE LANGUAGE</span>
+              <select class="field-input" data-bind="lang">
+                <option value="zh" data-i18n="lang.value.zh">繁體中文</option>
+                <option value="en" data-i18n="lang.value.en">English</option>
+              </select>
             </label>
             <label class="field">
-              <span class="field-key">TELEM RATE</span>
+              <span class="field-key" data-i18n="field.units">UNITS</span>
+              <select class="field-input">
+                <option data-i18n="units.metric">METRIC</option>
+                <option data-i18n="units.imperial">IMPERIAL</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="field-key" data-i18n="field.telem_rate">TELEM RATE</span>
               <select class="field-input"><option>50 Hz</option><option>100 Hz</option><option>200 Hz</option></select>
-            </label>
-            <label class="field">
-              <span class="field-key">MAP REFRESH</span>
-              <select class="field-input"><option>10 Hz</option><option>20 Hz</option><option>30 Hz</option></select>
             </label>
           </div>
         </article>
       </section>
 
       <footer class="ledger">
-        <span class="ledger-tag">CLASSIFICATION · OPERATIONS</span>
-        <span class="ledger-mid" id="ledger-msg">No active link · System nominal · Awaiting flight controller</span>
+        <span class="ledger-tag" data-i18n="ledger.tag">CLASSIFICATION · OPERATIONS</span>
+        <span class="ledger-mid" data-i18n="ledger.idle">No active link · System nominal · Awaiting flight controller</span>
         <span class="ledger-ver">AIRYN GROUND v0.1.0</span>
       </footer>
     </main>

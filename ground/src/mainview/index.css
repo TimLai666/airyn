@@ -49,18 +49,14 @@
   --accent-ice: #6c97a3;
   --accent-ok: #7ea081;
 
-  --font-display: "Inter Tight", "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", "Menlo", "Consolas", ui-monospace, monospace;
+  --font-display: "Inter Tight", "Inter", "PingFang TC", "Microsoft JhengHei", "Noto Sans CJK TC", "Noto Sans TC", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Inter", "PingFang TC", "Microsoft JhengHei", "Noto Sans CJK TC", "Noto Sans TC", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "Menlo", "Consolas", ui-monospace, "PingFang TC", "Microsoft JhengHei", monospace;
 
   color: var(--text-pri);
   font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.4;
-  text-rendering: geometricPrecision;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-synthesis: none;
 }
 
 * { box-sizing: border-box; }
@@ -294,7 +290,12 @@ button { cursor: pointer; }
   border-bottom: 1px solid var(--rule);
   padding-bottom: 0;
   overflow-x: auto;
+  overflow-y: hidden;
+  flex-wrap: nowrap;
 }
+
+.tabs::-webkit-scrollbar { height: 2px; }
+.tabs::-webkit-scrollbar-thumb { background: var(--rule); }
 
 .tab {
   display: flex;
@@ -335,14 +336,14 @@ button { cursor: pointer; }
 
 .view {
   min-height: 0;
-  animation: viewIn 360ms ease both;
+  animation: viewIn 240ms ease both;
 }
 
 .view[hidden] { display: none !important; }
 
 @keyframes viewIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* ============================================================
@@ -1480,6 +1481,125 @@ select.field-input {
 .ledger-tag { color: var(--accent-ochre); }
 .ledger-mid { color: var(--text-sec); flex: 1; text-align: center; }
 .ledger-ver { color: var(--text-mute); }
+
+/* ============================================================
+   Lang toggle (in masthead)
+   ============================================================ */
+
+.lang-toggles {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  font-weight: 600;
+}
+
+.lang-toggle {
+  padding: 2px 6px;
+  color: var(--text-mute);
+  font: inherit;
+  letter-spacing: inherit;
+  transition: color 160ms ease;
+}
+.lang-toggle:hover { color: var(--text-sec); }
+.lang-toggle.is-active { color: var(--accent-ochre); }
+
+.lang-sep { color: var(--accent-ochre-soft); opacity: 0.6; }
+
+/* ============================================================
+   Cam state hooks (REC, IR overlay)
+   ============================================================ */
+
+.cam-rec.is-rec {
+  color: var(--accent-ir);
+}
+.cam-rec.is-rec .rec-dot {
+  animation: rec-blink 1.2s ease-in-out infinite;
+}
+
+@keyframes rec-blink {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+.cam--main.is-ir {
+  background: radial-gradient(ellipse at 50% 50%, #2a1a18 0%, #120808 90%);
+}
+.cam--main.is-ir .cam-crosshair { background: linear-gradient(90deg, var(--accent-ir) 0 100%) center / 100% 1px no-repeat, linear-gradient(0deg, var(--accent-ir) 0 100%) center / 1px 100% no-repeat; }
+
+/* ============================================================
+   Typography overrides for Chinese (CJK)
+   — drop heavy Latin tracking; CJK glyphs already have intrinsic spacing
+   ============================================================ */
+
+html[lang="zh"] .brand-sub,
+html[lang="zh"] .slug,
+html[lang="zh"] .rail-key,
+html[lang="zh"] .rail-foot,
+html[lang="zh"] .rail-val,
+html[lang="zh"] .tab-name,
+html[lang="zh"] .readout-key,
+html[lang="zh"] .readout-status,
+html[lang="zh"] .readout-list dt,
+html[lang="zh"] .queue-name,
+html[lang="zh"] .queue-state,
+html[lang="zh"] .cell-class,
+html[lang="zh"] .cell-state,
+html[lang="zh"] .axis-list dt,
+html[lang="zh"] .channel-grid dt,
+html[lang="zh"] .link-meta,
+html[lang="zh"] .ctl-key,
+html[lang="zh"] .cal-label,
+html[lang="zh"] .cal-state,
+html[lang="zh"] .cal-prompt-class,
+html[lang="zh"] .cal-progress-key,
+html[lang="zh"] .cal-progress-val,
+html[lang="zh"] .chip,
+html[lang="zh"] .field-key,
+html[lang="zh"] .radio,
+html[lang="zh"] .radio span,
+html[lang="zh"] .op-btn-label,
+html[lang="zh"] .op-btn-meta,
+html[lang="zh"] .plate-class,
+html[lang="zh"] .plate-foot,
+html[lang="zh"] .reticle-tag,
+html[lang="zh"] .cam-class,
+html[lang="zh"] .cam-state,
+html[lang="zh"] .cam-foot,
+html[lang="zh"] .cam-rec-text,
+html[lang="zh"] .ledger-tag,
+html[lang="zh"] .ledger-mid,
+html[lang="zh"] .ledger-ver,
+html[lang="zh"] .search-key,
+html[lang="zh"] .search-meta,
+html[lang="zh"] .log-tag,
+html[lang="zh"] .log-msg,
+html[lang="zh"] .wp-table th,
+html[lang="zh"] .wp-table td {
+  letter-spacing: 0.06em;
+}
+
+html[lang="zh"] .brand-mark { letter-spacing: 0.12em; }
+html[lang="zh"] .cal-prompt-title { letter-spacing: 0; }
+
+/* ============================================================
+   Mono numerics — keep tabular figures
+   ============================================================ */
+
+.num,
+.field-input,
+.search-input,
+.wp-table td,
+.log-ts,
+.log-tag,
+.log-msg,
+.queue-idx,
+.tab-num,
+.cal-num {
+  font-feature-settings: "tnum" 1, "ss01" 1;
+}
 
 /* ============================================================
    Reduced motion
