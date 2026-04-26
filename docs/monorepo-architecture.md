@@ -60,6 +60,6 @@ If a shared file is included by firmware, it must stay small, deterministic, and
 - `models/`: aircraft settings, one directory per model.
 - `shared/protocol/`: future packet, command, and telemetry definitions.
 - `mission/`: Go project for onboard navigation, camera, AI, and sync logic.
-- `ground/`: Electrobun/Bun/TypeScript project for control UI, planning, telemetry monitoring.
+- `ground/`: Electrobun/Bun/TypeScript project for control UI, planning, telemetry monitoring. Prefer Bun-native APIs over extra packages unless Bun/Electrobun do not provide the needed capability.
 - `sim/`: placeholder for fake sensors and software simulation.
 - `tools/`: placeholder for repo-level tools that are not firmware-only.

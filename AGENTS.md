@@ -37,6 +37,9 @@ flight -> mission -> ground
 
 - `ground/` is written with Electrobun, Bun, and TypeScript.
 - Electrobun is not Electron. Do not use Electron APIs, Electron preload patterns, or Electron packaging assumptions.
+- Prefer Bun-native APIs before adding packages: use `Bun.file`, `Bun.write`, `Bun.serve`, `bun:sqlite`, WebSocket support, Bun test, and Bun's bundler when they cover the need.
+- Add a new ground dependency only when Bun/Electrobun do not provide the capability, or when a domain-specific library clearly reduces risk more than it adds weight.
+- Before adding a ground dependency, document why Bun-native functionality is insufficient in the relevant code comment, README note, or implementation plan entry.
 - Normal setup is `bun install`; validation is `bun run typecheck`.
 - Use Electrobun `BrowserWindow` and view entrypoint patterns from `electrobun.config.ts`.
 
