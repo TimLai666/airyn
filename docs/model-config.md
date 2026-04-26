@@ -1,13 +1,25 @@
 # Model Configuration
 
-Each aircraft model is a directory under repository root `models/`:
+Each aircraft model is a directory under repository root `models/<tier>/`:
 
 ```txt
-models/testbench/
-├─ model.toml
-├─ wiring.md
-└─ notes.md
+models/
+├─ dev/
+│  └─ testbench/
+│     ├─ model.toml
+│     ├─ wiring.md
+│     └─ notes.md
+├─ stable/
+└─ experimental/
 ```
+
+Tiers describe how a model is allowed to change:
+
+- `dev/`: editing sandbox. Daily bring-up and tuning happen here. The active dev profile is `models/dev/testbench/`.
+- `stable/`: frozen profiles for verified hardware. Treat these as read-only; promote a dev profile with `flight/tools/freeze_model.py`.
+- `experimental/`: opt-in profiles for risky tweaks. Used to keep a stable profile pristine while trying something on the same airframe.
+
+A profile name like `testbench` resolves across tiers automatically. Use `dev/testbench` or `stable/quad-x-250` to pin a specific tier.
 
 `model.toml` is the source of truth. Firmware builds validate it and generate MCU headers into `flight/build/generated/`.
 
@@ -45,6 +57,18 @@ Manual generation:
 python flight\tools\build_model.py testbench
 ```
 
+Promote a dev profile to stable:
+
+```powershell
+python flight\tools\freeze_model.py testbench quad-x-250
+```
+
+Open a dev editing copy from a stable profile:
+
+```powershell
+python flight\tools\edit_model.py stable/quad-x-250
+```
+
 Normal PlatformIO builds run validation and generation automatically.
 
 ## Fields
@@ -55,11 +79,13 @@ Top-level:
 - `target_board`: PlatformIO target board name used by this model.
 - `frame`: physical frame geometry. Current values are `quad_x`, `quad_plus`; `hex_x` is planned.
 
-`[board]`:
+`[board]` (optional override; defaults come from `boards/<target_board>.toml`):
 
 - `madflight_board`: MadFlight board adapter header.
 - `led_pin`: optional status LED pin.
 - `led_gizmo`: LED polarity/driver option used by MadFlight.
+
+The model's `target_board` selects a board file under `boards/`. The board file owns the pinout, LED, and MadFlight adapter; the model only adds a `[board]` section when it needs to override one of those fields. See `docs/board-config.md`.
 
 `[imu]`:
 

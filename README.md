@@ -11,7 +11,8 @@ airyn/
 |  |- protocol/         # packets, commands, telemetry contracts
 |  |- config-schema/    # model TOML format and validation rules
 |  `- math/             # shared coordinates, attitude, unit helpers
-|- models/              # one aircraft model per directory
+|- models/              # aircraft models, split into dev/, stable/, experimental/ tiers
+|- boards/              # physical PCB/breadboard pinouts referenced by models
 |- sim/                 # simulator, fake sensors, test environments
 |- tools/               # repo-level CLI and workflow tools
 |- docs/                # architecture, wiring, model-setting docs
@@ -45,13 +46,15 @@ cd flight
 pio run -e RP2350A
 ```
 
-The default model is `models/testbench`. Select a different model with:
+The default model is `models/dev/testbench`. Select a different model with:
 
 ```powershell
 $env:AIRYN_MODEL="quad-x-250"
 cd flight
 pio run -e RP2350A
 ```
+
+Profile names resolve across `dev/`, `stable/`, and `experimental/` automatically. Use `dev/<name>` or `stable/<name>` to pin a tier.
 
 PlatformIO runs `flight/tools/platformio_prebuild.py` automatically. That validates the TOML model and generates firmware-only artifacts under `flight/build/generated/`. Generated build files are ignored and should not be committed.
 
@@ -101,18 +104,28 @@ python tools\check_versions.py
 
 ## Model Settings
 
-Each aircraft model lives under `models/<model-name>/`:
+Each aircraft model lives under `models/<tier>/<model-name>/`:
 
 ```txt
-models/testbench/
-|- model.toml
-|- wiring.md
-`- notes.md
+models/
+|- dev/
+|  `- testbench/
+|     |- model.toml
+|     |- wiring.md
+|     `- notes.md
+|- stable/
+`- experimental/
 ```
+
+Tiers:
+
+- `dev/` is the editing sandbox. Daily bring-up and tuning happen here.
+- `stable/` holds frozen, hardware-verified profiles. Promote with `python flight\tools\freeze_model.py`.
+- `experimental/` is for opt-in risky tweaks on a verified airframe.
 
 `model.toml` is the source of truth for:
 
-- board target and MadFlight board adapter
+- board target (resolved against `boards/<target_board>.toml`) and any inline board overrides
 - frame geometry, such as `quad_x`, `quad_plus`, later `hex_x`
 - IMU type, bus, address, and pins
 - receiver type, serial/PPM pins, channel map, deadband, failsafe timeout
@@ -120,6 +133,8 @@ models/testbench/
 - motor pins, output indexes, physical positions, spin directions
 - safety arming thresholds and disarmed output behavior
 - flight mode, rate limits, and PID gains
+
+Physical PCB pinouts (LED, MadFlight adapter, MCU) live separately under `boards/<target_board>.toml`. See `docs/board-config.md`.
 
 Validate a model manually:
 
@@ -140,7 +155,7 @@ Normal builds do both steps automatically.
 This repo currently has a first-pass Airyn flight firmware composed around MadFlight:
 
 - MadFlight is vendored as a Git submodule under `flight/vendor/madflight`.
-- `models/testbench/model.toml` is the default test aircraft.
+- `models/dev/testbench/model.toml` is the default test aircraft.
 - The firmware has receiver input, arming/failsafe, rate PID, Quad X/Plus mixer support, motor output, and serial debug telemetry.
 - `mission/` has a first Go daemon skeleton.
 - `ground/` has a first Electrobun desktop app skeleton.
@@ -150,5 +165,7 @@ Read next:
 
 - `docs/monorepo-architecture.md`
 - `docs/model-config.md`
+- `docs/board-config.md`
 - `docs/new-model-bringup.md`
+- `docs/operating-modes.md`
 - `docs/madflight-integration.md`

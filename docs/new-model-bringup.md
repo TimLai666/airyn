@@ -2,21 +2,17 @@
 
 This is the expected flow for adding a new aircraft model.
 
-## 1. Create The Model Directory
+## 1. Create The Dev Profile
 
-Start from `models/testbench/`:
+New aircraft start as a dev profile. Use `edit_model.py` to clone an existing dev or stable profile into `models/dev/`:
 
 ```powershell
-Copy-Item -Recurse models\testbench models\quad-x-250
+python flight\tools\edit_model.py testbench --target quad-x-250
 ```
 
-Edit:
+This creates `models/dev/quad-x-250/` with `model.toml`, `wiring.md`, and `notes.md`. Edit those for the new airframe.
 
-```txt
-models/quad-x-250/model.toml
-models/quad-x-250/wiring.md
-models/quad-x-250/notes.md
-```
+If the airframe needs a board that does not yet exist, also add `boards/<target_board>.toml`.
 
 ## 2. Validate The TOML
 
@@ -54,6 +50,16 @@ Before propellers are installed:
 
 ## 5. First Hover
 
-Use conservative PID gains, keep the first test short, and record results in `models/<model>/notes.md`.
+Use conservative PID gains, keep the first test short, and record results in `models/dev/<model>/notes.md`.
+
+## 6. Promote To Stable
+
+Once the airframe has flown safely with a known-good `model.toml`, freeze it into the `stable/` tier:
+
+```powershell
+python flight\tools\freeze_model.py quad-x-250 quad-x-250
+```
+
+This copies `models/dev/quad-x-250/` into `models/stable/quad-x-250/` and appends a freeze note to `notes.md`. Stable profiles should not be edited in place; clone them back into `dev/` with `edit_model.py` for further changes.
 
 The target state is: model TOML plus wiring notes are enough to reproduce a firmware build, flash, bench check, and flight test.

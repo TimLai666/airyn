@@ -1,0 +1,9 @@
+name = "pico2_breadboard_dev"
+description = "Raspberry Pi Pico 2 (RP2350A) on a breadboard for development and bring-up."
+mcu = "RP2350A"
+pio_env = "RP2350A"
+
+[board]
+madflight_board = "brd/default.h"
+led_gizmo = "HIGH_IS_ON"
+led_pin = 25

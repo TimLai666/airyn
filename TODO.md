@@ -87,8 +87,6 @@ boards/
   pico2_breadboard_dev.toml
 ```
 
-現在還不用急。
-
 ---
 
 ### 5. 定義 Target 層

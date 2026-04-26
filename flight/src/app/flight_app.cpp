@@ -2,6 +2,7 @@
 
 #include "../madflight_config.h"
 #include "../core/control_loop.h"
+#include "../devices/imu_adapter.h"
 #include "../devices/motor_output.h"
 #include "../devices/receiver.h"
 #include "../mixer/mixer.h"
@@ -15,14 +16,16 @@ namespace {
 
 devices::Receiver receiver;
 devices::MotorOutput motorOutput;
+devices::ImuAdapter imuAdapter;
 core::ControlLoop controlLoop;
 mixer::Mixer mixer;
 safety::ArmingController arming;
 telemetry::SerialDebug serialDebug;
 bool flightRuntimeReady = false;
+uint32_t imuTickCount = 0;
 
 void blinkStatus() {
-  if (imu.update_cnt % 1000 == 0) {
+  if ((imuTickCount % 1000) == 0) {
     led.toggle();
   }
 }
@@ -43,14 +46,6 @@ core::ControlInput makeControlInput(const devices::ReceiverState& receiverState,
   input.armed = armed;
   input.connected = receiverState.connected;
   return input;
-}
-
-core::GyroRates currentGyroRates() {
-  core::GyroRates rates = {};
-  rates.roll = ahr.gx;
-  rates.pitch = ahr.gy;
-  rates.yaw = ahr.gz;
-  return rates;
 }
 
 telemetry::RuntimeDebug makeRuntimeDebug(const devices::ReceiverState& receiverState,
@@ -96,22 +91,23 @@ void loop() {
 }
 
 void imuLoop() {
+  ++imuTickCount;
   blinkStatus();
 
-  ahr.update();
+  imuAdapter.update();
   if (!flightRuntimeReady) {
     return;
   }
 
   const uint32_t nowMs = millis();
   const devices::ReceiverState receiverState = receiver.update();
-  const bool imuHealthy = imu.installed();
+  const devices::ImuSample imuSample = imuAdapter.sample();
 
   safety::ArmingInput armingInput = {};
   armingInput.receiverConnected = receiverState.connected;
   armingInput.armSwitch = receiverState.arm;
   armingInput.throttle = receiverState.throttle;
-  armingInput.imuHealthy = imuHealthy;
+  armingInput.imuHealthy = imuSample.healthy;
   armingInput.motorOutputInitialized = motorOutput.initialized();
   armingInput.nowMs = nowMs;
 
@@ -124,15 +120,15 @@ void imuLoop() {
 
   const core::ControlOutput control = controlLoop.update(
       makeControlInput(receiverState, armingStatus.armed),
-      currentGyroRates(),
-      imu.dt);
+      imuSample.rates,
+      imuSample.dt);
 
   const mixer::AxisCorrection correction = {control.roll, control.pitch, control.yaw};
   const mixer::MotorCommand command = mixer.mix(receiverState.throttle, correction, armingStatus.armed);
   motorOutput.write(command.value, command.count);
 
   serialDebug.printRuntime(
-      makeRuntimeDebug(receiverState, armingStatus, imuHealthy, control, command),
+      makeRuntimeDebug(receiverState, armingStatus, imuSample.healthy, control, command),
       nowMs);
 }
 

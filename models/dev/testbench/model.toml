@@ -2,10 +2,8 @@ name = "testbench"
 target_board = "pico2_breadboard_dev"
 frame = "quad_x"
 
-[board]
-madflight_board = "brd/default.h"
-led_gizmo = "HIGH_IS_ON"
-led_pin = 25
+# Board pinout, LED, and madflight adapter come from boards/pico2_breadboard_dev.toml.
+# Add a `[board]` section here only to override individual fields for this model.
 
 [imu]
 type = "MPU6050"

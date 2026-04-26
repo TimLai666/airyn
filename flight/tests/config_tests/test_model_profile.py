@@ -39,7 +39,7 @@ class ModelProfileTests(unittest.TestCase):
         self.assertIn("static constexpr int kMotorPins", header)
 
     def test_duplicate_motor_pin_fails(self) -> None:
-        source = REPO_ROOT / "models" / "testbench"
+        source = REPO_ROOT / "models" / "dev" / "testbench"
         with tempfile.TemporaryDirectory() as tmp:
             profile = Path(tmp) / "bad_model"
             shutil.copytree(source, profile)

@@ -5,10 +5,10 @@
 Airyn should reach the point where adding or editing one model:
 
 ```text
-models/<model>/model.toml
+models/<tier>/<model>/model.toml
 ```
 
-is enough to build firmware for that aircraft without changing C++ source code.
+(plus the matching `boards/<target_board>.toml`) is enough to build firmware for that aircraft without changing C++ source code.
 
 "Can fly" still requires real hardware verification: IMU orientation, receiver channels, motor order, motor direction, failsafe, and PID tuning must be checked before prop-on flight.
 
@@ -16,25 +16,29 @@ is enough to build firmware for that aircraft without changing C++ source code.
 
 - Monorepo skeleton exists with independent `flight/`, placeholder `mission/`, `ground/`, `shared/`, `sim/`, `tools/`, and `examples/`.
 - MadFlight is included as `flight/vendor/madflight` submodule pinned to `v2.3.0`.
-- `model.toml` exists for `models/testbench`.
-- PlatformIO pre-build generates `flight/build/generated/active_model_config.h` from TOML.
-- Firmware now has an integrated first-pass rate-mode flight loop: receiver normalization, arming/failsafe, PID, Quad X mixer, motor output, and serial debug. It still needs PlatformIO compilation and no-prop hardware verification.
+- `models/` is split into `dev/`, `stable/`, `experimental/` tiers. `models/dev/testbench/model.toml` is the default development model.
+- Board pinouts live under `boards/`; `boards/pico2_breadboard_dev.toml` is the current development board. Models reference a board via `target_board`, and the board file is merged into the model at load time.
+- PlatformIO pre-build generates `flight/build/generated/active_model_config.h` from TOML. This generated header is the only entry point for model and board values into firmware.
+- MadFlight access is contained behind adapters in `flight/src/devices/` (`receiver`, `motor_output`, `imu_adapter`); the flight app no longer reads `ahr`/`imu` globals directly.
+- Firmware has an integrated first-pass rate-mode flight loop: receiver normalization, arming/failsafe, PID, Quad X mixer, motor output, and serial debug. It still needs PlatformIO compilation and no-prop hardware verification.
+- Operating modes (Direct vs Mission) are documented in `docs/operating-modes.md`; only Direct mode is wired today.
 
 ## Progress Tracker
 
 | Phase | Status | Notes |
 |---|---|---|
-| 1. TOML schema | Partial | `models/testbench/model.toml` now covers receiver channel map, safety, rate-mode limits, motor direction/output index, and ESC details. Validation covers frame counts, motor geometry, receiver/ESC requirements, GPIO conflicts, and PID/rate/safety basics. |
+| 1. TOML schema | Partial | `models/dev/testbench/model.toml` now covers receiver channel map, safety, rate-mode limits, motor direction/output index, and ESC details. Board pinout is delegated to `boards/pico2_breadboard_dev.toml`. Validation covers frame counts, motor geometry, receiver/ESC requirements, GPIO conflicts, target_board reference, and PID/rate/safety basics. |
 | 2. MadFlight bridge | Partial | Generator now emits structured firmware constants/arrays plus MadFlight config for I2C/SPI IMU, PPM/serial receiver pins, receiver channel map/deadband, motor output pins by `output_index`, LED, and AHRS. First-pass firmware modules consume the contract. Needs PlatformIO compile validation and more hardware variants. |
-| 3. Flight app loop | Partial | App now wires MadFlight, receiver, safety, rate PID, Quad X mixer, motor output, and telemetry in `imu_loop()`. Needs PlatformIO compile and no-prop hardware verification. |
+| 3. Flight app loop | Partial | App now wires MadFlight, receiver, safety, rate PID, Quad X mixer, motor output, and telemetry in `imu_loop()`. IMU access goes through `devices::ImuAdapter` instead of MadFlight globals. Needs PlatformIO compile and no-prop hardware verification. |
 | 4. Receiver layer | Partial | Added wrapper around MadFlight rcl with normalized state, generated channel map, and deadband handling. Integrated in app loop. Needs hardware receiver verification. |
 | 5. Safety layer | Partial | Arming/disarming and receiver failsafe APIs added and integrated. Needs tests and hardware failsafe verification. |
 | 6. PID control | Partial | Added reusable PID class and rate-mode ControlLoop using generated PID/rate settings. Integrated in app loop. Needs tuning and tests. |
 | 7. Mixer layer | Partial | Added Quad X mixer using generated motor geometry/direction signs, output clamp, and armed idle handling. Integrated in app loop. Needs tests and motor-order verification. |
 | 8. Motor output layer | Partial | Added MotorOutput wrapper with generated output indices, DShot/PWM setup, arm state, and bulk write helpers. Integrated in app loop. Needs PlatformIO compile and no-prop output verification. |
 | 9. Telemetry debug | Partial | Serial startup/runtime debug printer added and integrated. Needs serial monitor verification on hardware. |
-| 10. Tests | Partial | Added Python config/profile tests. Still need mixer and safety tests with a C++ host or PlatformIO test setup. |
-| 11. Bring-up docs | Partial | `docs/new-model-bringup.md` checklist added. Keep updated as hardware flow evolves. |
+| 10. Tests | Partial | Added Python config/profile tests covering tiered model lookup. Still need mixer and safety tests with a C++ host or PlatformIO test setup. |
+| 11. Bring-up docs | Partial | `docs/new-model-bringup.md`, `docs/board-config.md`, and `docs/operating-modes.md` reflect the tiered model + board layout. Keep updated as hardware flow evolves. |
+| 12. Model tiers and boards | Done | `models/{dev,stable,experimental}/` tiers in place, `boards/<target_board>.toml` separated from model, `freeze_model.py`/`edit_model.py` updated for the tiered workflow, `check_config.py` validates the board reference. |
 
 Update this table whenever implementation progress changes.
 

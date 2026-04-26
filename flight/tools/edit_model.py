@@ -8,25 +8,40 @@ import datetime as dt
 import shutil
 import sys
 
-from model_profile import MODELS_ROOT, display_path, profile_dir
+from model_profile import (
+    MODELS_ROOT,
+    MODEL_TIERS,
+    _normalize_profile,
+    display_path,
+    profile_dir,
+)
 
 
 def default_target(source: str) -> str:
-    name = source.strip("/\\").replace("\\", "/").split("/")[-1]
+    name = _normalize_profile(source).split("/")[-1]
     return f"{name}_edit"
+
+
+def resolve_dev_target(target: str):
+    """Resolve an editing target into the dev tier unless caller pinned a tier."""
+    normalized = _normalize_profile(target)
+    parts = normalized.split("/")
+    if len(parts) >= 2 and parts[0] in MODEL_TIERS:
+        return profile_dir(target)
+    return profile_dir(f"dev/{normalized}")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("source", help="existing model, for example testbench or quad-x-250")
-    parser.add_argument("--target", help="editing model name, defaults to <name>_edit")
+    parser.add_argument("source", help="existing model, for example testbench or stable/quad-x-250")
+    parser.add_argument("--target", help="editing model name, defaults to <name>_edit under dev/")
     parser.add_argument("--force", action="store_true", help="overwrite target editing profile")
     parser.add_argument("--reason", default="Prepare profile edit")
     args = parser.parse_args()
 
     target_profile = args.target or default_target(args.source)
     source = profile_dir(args.source)
-    target = profile_dir(target_profile)
+    target = resolve_dev_target(target_profile)
 
     if not (source / "model.toml").exists():
         print(f"ERROR: missing source model.toml: {source}", file=sys.stderr)
@@ -44,15 +59,16 @@ def main() -> int:
             return 2
         shutil.rmtree(target)
 
+    target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(source, target)
 
     notes = target / "notes.md"
     date = dt.date.today().isoformat()
     with notes.open("a", encoding="utf-8") as handle:
         handle.write(f"\n## {date} Edit Session\n\n")
-        handle.write(f"- Source: `{args.source}`\n")
+        handle.write(f"- Source: `{display_path(source)}`\n")
         handle.write(f"- Reason: {args.reason}\n")
-        handle.write("- Status: editing copy, not yet written back to stable.\n")
+        handle.write("- Status: editing copy under dev/, not yet frozen back to stable.\n")
 
     print(f"Copied {display_path(source)} -> {display_path(target)}")
     return 0

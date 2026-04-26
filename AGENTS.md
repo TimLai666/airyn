@@ -2,7 +2,7 @@
 
 ## Priority
 
-The top project priority is to make Airyn reach: define a model in `models/<model>/model.toml`, build with one command, flash, calibrate, and fly safely. Use `docs/implementation-plan.md` as the active implementation plan and update progress there whenever a meaningful task is completed or the plan changes.
+The top project priority is to make Airyn reach: define a model in `models/<tier>/<model>/model.toml` (with the matching board file under `boards/`), build with one command, flash, calibrate, and fly safely. Use `docs/implementation-plan.md` as the active implementation plan and update progress there whenever a meaningful task is completed or the plan changes.
 
 ## Monorepo Boundaries
 
@@ -65,15 +65,29 @@ flight -> mission -> ground
 
 ## Model Settings
 
-- Model source-of-truth files live under `models/<model>/model.toml`.
-- `models/testbench/` is the daily development test model.
-- Old model settings are allowed to change; edit the TOML, wiring notes, and notes together so the model stays understandable.
-- Validate model data with `python flight/tools/check_config.py <model>`.
+- Model source-of-truth files live under `models/<tier>/<model>/model.toml` where `<tier>` is `dev`, `stable`, or `experimental`.
+- `models/dev/testbench/` is the daily development test model.
+- Treat `stable/` profiles as read-only. To change a stable profile, clone it back to `dev/` with `python flight/tools/edit_model.py stable/<model>`, edit there, then re-promote with `python flight/tools/freeze_model.py <dev-name> <stable-name>`.
+- Validate model data with `python flight/tools/check_config.py <model>`. Profile lookup searches all tiers automatically; pin a tier explicitly with `dev/<name>` or `stable/<name>` when needed.
 - Generate firmware artifacts with `python flight/tools/build_model.py <model>` only when debugging; normal PlatformIO builds run it automatically.
+
+## Board Settings
+
+- Physical board pinout, MadFlight adapter, LED, and PIO env live under `boards/<target_board>.toml`.
+- A model selects a board with `target_board = "<name>"`; the board file is merged into the model at load time. Inline `[board]` keys in the model override individual board fields.
+- Adding a new PCB or breadboard variant means adding a new file under `boards/`, not editing the model.
+
+## Adapter Boundary
+
+- Code outside `flight/src/devices/` and `flight/src/madflight_config.h` must not include MadFlight headers or read MadFlight globals (`ahr`, `imu`, `rcl`, `out`).
+- Use the existing wrappers: `devices::Receiver`, `devices::MotorOutput`, `devices::ImuAdapter`. Add a new adapter when a new MadFlight subsystem is needed.
+- The generated `flight/build/generated/active_model_config.h` is the only entry point for model and board values into firmware.
 
 ## Documentation
 
 - Keep `docs/implementation-plan.md` current as implementation progresses.
-- Keep `docs/model-config.md` aligned with the TOML schema.
+- Keep `docs/model-config.md` aligned with the TOML schema and tiered layout.
+- Keep `docs/board-config.md` aligned with the `boards/` schema.
 - Keep `docs/new-model-bringup.md` aligned with the actual build and setup flow.
+- Keep `docs/operating-modes.md` aligned with how Ground reaches Flight (direct vs through Mission).
 - Keep `docs/madflight-integration.md` aligned with the pinned submodule path and version.

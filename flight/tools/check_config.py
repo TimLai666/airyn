@@ -6,7 +6,13 @@ from __future__ import annotations
 import argparse
 import sys
 
-from model_profile import display_path, load_profile, profile_file, require
+from model_profile import (
+    board_file,
+    display_path,
+    load_profile,
+    profile_file,
+    require,
+)
 
 SUPPORTED_FRAMES = {
     "quad_x": {
@@ -55,6 +61,15 @@ def main() -> int:
     except Exception as exc:
         print(f"ERROR: cannot parse {config}: {exc}", file=sys.stderr)
         return 2
+
+    target_board = data.get("target_board")
+    if target_board:
+        board_path = board_file(target_board)
+        if not board_path.exists() and "board" not in data:
+            return fail(
+                f"target_board {target_board!r} has no boards/{target_board}.toml "
+                "and no inline [board] section"
+            )
 
     missing: list[str] = []
     missing.extend(

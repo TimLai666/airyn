@@ -14,11 +14,17 @@ airyn/
 |  |- config-schema/
 |  `- math/
 |- models/
+|  |- dev/
+|  |- stable/
+|  `- experimental/
+|- boards/
 |- sim/
 |- tools/
 |- docs/
 `- examples/
 ```
+
+`models/` is split into tiers (`dev/`, `stable/`, `experimental/`); see `docs/model-config.md`. Physical PCB pinouts live separately under `boards/`; see `docs/board-config.md`. Operating modes (Direct vs Mission) are described in `docs/operating-modes.md`.
 
 ## Dependency Rules
 

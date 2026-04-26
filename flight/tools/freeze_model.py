@@ -8,24 +8,48 @@ import datetime as dt
 import shutil
 import sys
 
-from model_profile import MODELS_ROOT, display_path, profile_dir, update_toml_name
+from model_profile import (
+    DEFAULT_FREEZE_TIER,
+    MODELS_ROOT,
+    MODEL_TIERS,
+    _normalize_profile,
+    display_path,
+    profile_dir,
+    profile_tier,
+    update_toml_name,
+)
 
 
 def model_name_from_profile(profile: str) -> str:
-    return profile.strip("/\\").replace("\\", "/").split("/")[-1]
+    return _normalize_profile(profile).split("/")[-1]
+
+
+def resolve_target(target: str, tier: str):
+    """Resolve a target profile to an absolute path under models/<tier>/."""
+    normalized = _normalize_profile(target)
+    parts = normalized.split("/")
+    if len(parts) >= 2 and parts[0] in MODEL_TIERS:
+        return profile_dir(target), parts[0]
+    return profile_dir(f"{tier}/{normalized}"), tier
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("source", help="source model, for example testbench")
-    parser.add_argument("target", help="target model, for example quad-x-250")
+    parser.add_argument("source", help="source model, for example testbench or dev/testbench")
+    parser.add_argument("target", help="target model name, for example quad-x-250")
+    parser.add_argument(
+        "--tier",
+        choices=MODEL_TIERS,
+        default=DEFAULT_FREEZE_TIER,
+        help=f"target tier when target has no tier prefix (default: {DEFAULT_FREEZE_TIER})",
+    )
     parser.add_argument("--force", action="store_true", help="overwrite target profile")
     parser.add_argument("--update", action="store_true", help="alias for --force when updating an existing profile")
     parser.add_argument("--reason", default="Freeze from development profile")
     args = parser.parse_args()
 
     source = profile_dir(args.source)
-    target = profile_dir(args.target)
+    target, target_tier = resolve_target(args.target, args.tier)
 
     if not (source / "model.toml").exists():
         print(f"ERROR: missing source model.toml: {source}", file=sys.stderr)
@@ -37,6 +61,15 @@ def main() -> int:
         print("ERROR: target model must be under repository models/", file=sys.stderr)
         return 2
 
+    source_tier = profile_tier(args.source)
+    if source_tier is None:
+        print(f"WARN: source {display_path(source)} is not in a known tier", file=sys.stderr)
+    elif source_tier != "dev":
+        print(
+            f"WARN: source {display_path(source)} is in '{source_tier}' tier (expected 'dev')",
+            file=sys.stderr,
+        )
+
     replacing_existing = target.exists()
     if replacing_existing:
         if not (args.force or args.update):
@@ -44,6 +77,7 @@ def main() -> int:
             return 2
         shutil.rmtree(target)
 
+    target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(source, target)
 
     config = target / "model.toml"
@@ -57,7 +91,8 @@ def main() -> int:
     with notes.open("a", encoding="utf-8") as handle:
         action = "Update" if replacing_existing else "Freeze"
         handle.write(f"\n## {date} {action}\n\n")
-        handle.write(f"- Source: `{args.source}`\n")
+        handle.write(f"- Source: `{display_path(source)}`\n")
+        handle.write(f"- Target tier: `{target_tier}`\n")
         handle.write(f"- Reason: {args.reason}\n")
 
     verb = "Updated" if replacing_existing else "Frozen"

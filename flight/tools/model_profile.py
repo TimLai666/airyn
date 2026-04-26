@@ -11,6 +11,10 @@ from typing import Any
 FLIGHT_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = FLIGHT_ROOT.parent
 MODELS_ROOT = REPO_ROOT / "models"
+BOARDS_ROOT = REPO_ROOT / "boards"
+
+MODEL_TIERS = ("dev", "stable", "experimental")
+DEFAULT_FREEZE_TIER = "stable"
 
 # Backwards-compatible name used by older helper scripts. Generated firmware
 # artifacts remain under flight/build so the firmware project stays standalone.
@@ -27,34 +31,102 @@ def display_path(path: Path) -> str:
     return str(resolved)
 
 
+def _normalize_profile(profile: str) -> str:
+    return profile.strip("/\\").replace("\\", "/")
+
+
 def profile_dir(profile: str) -> Path:
     candidate = Path(profile)
     if candidate.is_absolute():
         return candidate.resolve()
 
-    normalized = profile.strip("/\\")
-    if normalized.startswith(("models/", "models\\")):
+    normalized = _normalize_profile(profile)
+    if normalized.startswith("models/"):
         return (REPO_ROOT / normalized).resolve()
 
-    direct = (MODELS_ROOT / normalized).resolve()
-    if (direct / "model.toml").exists():
-        return direct
+    parts = normalized.split("/")
+    if len(parts) >= 2 and parts[0] in MODEL_TIERS:
+        return (MODELS_ROOT / Path(*parts)).resolve()
 
-    legacy = (FLIGHT_ROOT / "profiles_legacy" / normalized).resolve()
+    name = parts[-1]
+    for tier in MODEL_TIERS:
+        candidate_dir = (MODELS_ROOT / tier / name).resolve()
+        if (candidate_dir / "model.toml").exists():
+            return candidate_dir
+
+    flat = (MODELS_ROOT / name).resolve()
+    if (flat / "model.toml").exists():
+        return flat
+
+    legacy = (FLIGHT_ROOT / "profiles_legacy" / name).resolve()
     if (legacy / "model.toml").exists():
         return legacy
 
-    return direct
+    return (MODELS_ROOT / "dev" / name).resolve()
 
 
 def profile_file(profile: str) -> Path:
     return profile_dir(profile) / "model.toml"
 
 
+def profile_tier(profile: str) -> str | None:
+    """Return the tier name (dev/stable/experimental) for a resolved profile, or None."""
+    resolved = profile_dir(profile)
+    try:
+        relative = resolved.relative_to(MODELS_ROOT)
+    except ValueError:
+        return None
+    parts = relative.parts
+    if len(parts) >= 2 and parts[0] in MODEL_TIERS:
+        return parts[0]
+    return None
+
+
+def board_file(target_board: str) -> Path:
+    return (BOARDS_ROOT / f"{target_board}.toml").resolve()
+
+
+def load_board(target_board: str) -> dict[str, Any]:
+    path = board_file(target_board)
+    if not path.exists():
+        return {}
+    with path.open("rb") as handle:
+        return tomllib.load(handle)
+
+
+def merge_board_into_profile(data: dict[str, Any]) -> dict[str, Any]:
+    """Merge boards/<target_board>.toml fields into a model profile in-place.
+
+    Inline `[board]` keys in the model take precedence over the board file so a
+    model can override a single field without forking the board definition.
+    """
+    target = data.get("target_board")
+    if not target:
+        return data
+
+    board_data = load_board(target)
+    if not board_data:
+        return data
+
+    inline = data.get("board", {}) or {}
+    merged = {**board_data.get("board", {}), **inline}
+
+    for key, value in board_data.items():
+        if key == "board":
+            continue
+        if key not in data:
+            data[key] = value
+
+    if merged:
+        data["board"] = merged
+    return data
+
+
 def load_profile(profile: str) -> dict[str, Any]:
     config = profile_file(profile)
     with config.open("rb") as handle:
-        return tomllib.load(handle)
+        data = tomllib.load(handle)
+    return merge_board_into_profile(data)
 
 
 def model_name_from_profile(profile: str) -> str:

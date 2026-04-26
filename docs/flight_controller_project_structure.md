@@ -1,6 +1,6 @@
 # 自製飛控軟體專案結構設計文件
 
-> Implementation note: the current repo is now a monorepo. `flight/` is the independent firmware project, aircraft settings live in root `models/<model>/model.toml`, and generated firmware artifacts go under `flight/build/generated/`. Older examples in this design note that mention root `profiles/`, root `vendor/madflight/`, or hand-written `model_config.h` should be read as historical planning notes.
+> Implementation note: the current repo is now a monorepo. `flight/` is the independent firmware project, aircraft settings live in `models/<tier>/<model>/model.toml` (tiers: `dev/`, `stable/`, `experimental/`), board pinouts live in `boards/<target_board>.toml`, and generated firmware artifacts go under `flight/build/generated/`. Adapter wrappers around MadFlight live in `flight/src/devices/` (`receiver`, `motor_output`, `imu_adapter`). Older examples in this design note that mention root `profiles/`, root `vendor/madflight/`, or hand-written `model_config.h` should be read as historical planning notes — see `docs/model-config.md`, `docs/board-config.md`, and `docs/architecture.md` for current reality.
 
 ## 1. 專案定位
 
