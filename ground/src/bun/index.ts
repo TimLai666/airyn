@@ -1,9 +1,15 @@
-import { BrowserWindow } from "electrobun/bun";
-import { Screen } from "electrobun/bun";
+import { BrowserWindow, Screen } from "electrobun/bun";
+import { startBridge } from "./bridge";
+import { BRIDGE_PORT } from "../shared/protocol";
 
-// Open at 85 % of the primary display's work area, centered. The work area
-// excludes the Windows taskbar, so the window lands neatly without overlap.
-// Falls back to a sane fixed default if the Screen probe ever fails.
+// Boot order matters: spin up the simulator/bridge BEFORE the window so
+// that the renderer's WebSocket connect attempt at load time succeeds on
+// the first try.
+startBridge(BRIDGE_PORT);
+
+// Open at 92 % of the primary display's work area, centered. The work
+// area excludes the Windows taskbar, so the window lands neatly without
+// overlap. Falls back to a sane fixed default if the Screen probe fails.
 const FALLBACK = { width: 1400, height: 900 };
 const COVERAGE = 0.92;
 

@@ -806,15 +806,11 @@ function toggleIROpt(): void {
   if (main) main.classList.toggle("is-ir", state.ir);
 }
 
-// ---------- 7. Demo simulator (multi-vehicle, Leaflet) ----------
-
-const SIM_DT = 0.1; // 10 Hz
-
-let simTickHandle: ReturnType<typeof setInterval> | null = null;
-let simTime = 0;
+// ---------- 7. Map + bridge client (telemetry comes from src/bun/sim) ----------
 
 let leafletMap: any = null;
 let rangeRingLayers: any[] = [];
+let serverSimTime = 0;
 
 function jitter(base: number, span: number): number {
   return base + (Math.random() - 0.5) * span * 2;
@@ -857,7 +853,9 @@ function initMap(): void {
     inertia: true,
   }).setView([24.787, 121.011], 14);
 
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+  // Carto Voyager — neutral cream basemap with subtle road colours.
+  // Matches a real GCS look while keeping the cinematic chrome readable.
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
     attribution: "&copy; OpenStreetMap &copy; CARTO",
     subdomains: "abcd",
     maxZoom: 19,
@@ -905,6 +903,7 @@ function updateRangeRings(): void {
   rangeRingLayers = [];
   const v = activeVehicle();
   if (!v) return;
+  if (!Number.isFinite(v.lat) || !Number.isFinite(v.lon)) return;
   const radii = [50, 100, 250, 500];
   for (const r of radii) {
     const c = L.circle([v.lat, v.lon], {
@@ -966,84 +965,207 @@ function renderFleetChips(): void {
   }
 }
 
-// ---- Per-vehicle motion + GPS dropout ----
+// ---- WebSocket client: subscribes to bun-side simulator/bridge ----
 
-function tickVehicle(v: Vehicle): void {
-  if (!v.flight) return;
+let bridgeSocket: WebSocket | null = null;
+let bridgeRetryTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // GPS dropout pattern: deterministic per-vehicle phase
-  const phase = (simTime + v.id.charCodeAt(0) * 7) % 30;     // 30 s cycle
-  const gpsActive = !(phase >= 22 && phase < 30);            // 8 s dropout window
-  const wasActive = v.gpsActive;
-  v.gpsActive = gpsActive;
-
-  if (wasActive && !gpsActive) {
-    v.insActive = true;
-    v.insTrack = [];
-    if (v.gpsTrack.length > 0) v.insTrack.push(v.gpsTrack[v.gpsTrack.length - 1]!);
-    pushLog("warn", "log.tag.ins", "log.msg.gps_lost", v.callsign);
-  } else if (!wasActive && gpsActive) {
-    v.insActive = false;
-    pushLog("info", "log.tag.gps", "log.msg.gps_resume", v.callsign);
-  }
-
-  // Move along heading at v.speed (m/s)
-  const headRad = (v.heading * Math.PI) / 180;
-  const dlat = (v.speed * SIM_DT * Math.cos(headRad)) / 111111;
-  const dlon = (v.speed * SIM_DT * Math.sin(headRad)) / (111111 * Math.cos((v.lat * Math.PI) / 180));
-  v.lat += dlat;
-  v.lon += dlon;
-
-  // Slight curve so trajectory isn't a straight line
-  const curveDeg = 4 + (v.id.charCodeAt(2) % 5);
-  v.heading = (((v.heading + SIM_DT * curveDeg) % 360) + 360) % 360;
-
-  v.altitude = 45 + Math.sin(simTime * 0.2) * 2;
-  v.baroAlt = v.altitude + jitter(0, 0.3);
-  v.baroVs = jitter(0, 0.4);
-  v.baroP = jitter(1013.2, 0.4);
-  v.baroT = 24.5 + jitter(0, 0.1);
-
-  if (gpsActive) {
-    v.gpsTrack.push([v.lat, v.lon]);
-    if (v.gpsTrack.length > 800) v.gpsTrack.shift();
-  } else {
-    v.insTrack.push([v.lat, v.lon]);
-    if (v.insTrack.length > 400) v.insTrack.shift();
-  }
-
-  if (gpsActive) {
-    if (v.gpsSats < 14) v.gpsSats = Math.min(14, v.gpsSats + 1);
-    v.gpsHdop = jitter(0.7, 0.05);
-  } else {
-    v.gpsSats = Math.max(0, v.gpsSats - 1);
-    v.gpsHdop = 99;
-  }
-
-  v.roll = jitter(0, 0.6);
-  v.pitch = jitter(0, 0.6);
-  v.yaw = v.heading;
-  v.thr = Math.max(0, 35 + Math.floor(jitter(0, 6)));
-  v.vbat = Math.max(15, 22.4 - simTime * 0.0006);
-  v.armed = true;
-
-  v.gyroX = jitter(0, 0.4); v.gyroY = jitter(0, 0.4); v.gyroZ = jitter(0, 0.4);
-  v.accelX = jitter(0, 0.04); v.accelY = jitter(0, 0.04); v.accelZ = 1.0 + jitter(0, 0.02);
-  v.batI = jitter(8.4, 0.6);
-  v.batUsed += (v.batI * SIM_DT) / 3.6;
-
-  if (v.marker) v.marker.setLatLng([v.lat, v.lon]);
-  if (v.gpsLine) v.gpsLine.setLatLngs(v.gpsTrack);
-  if (v.insLine) v.insLine.setLatLngs(v.insTrack);
-  refreshMarkerClass(v);
+function bridgeUrl(): string {
+  // Bridge port is fixed in shared/protocol; we hard-code it here so
+  // the renderer doesn't need to import shared types at runtime.
+  return "ws://localhost:7711";
 }
 
-function tickFleet(): void {
-  simTime += SIM_DT;
-  for (const v of state.vehicles) tickVehicle(v);
+function connectBridge(): void {
+  if (bridgeRetryTimer) {
+    clearTimeout(bridgeRetryTimer);
+    bridgeRetryTimer = null;
+  }
+  try {
+    bridgeSocket = new WebSocket(bridgeUrl());
+  } catch (err) {
+    console.error("[airyn] bridge connect threw", err);
+    bridgeRetryTimer = setTimeout(connectBridge, 1500);
+    return;
+  }
+
+  bridgeSocket.addEventListener("open", () => {
+    console.log("[airyn] bridge connected");
+  });
+  bridgeSocket.addEventListener("close", () => {
+    console.warn("[airyn] bridge closed, retrying in 1.5s");
+    bridgeSocket = null;
+    bridgeRetryTimer = setTimeout(connectBridge, 1500);
+  });
+  bridgeSocket.addEventListener("error", (e) => {
+    console.warn("[airyn] bridge error", e);
+  });
+  bridgeSocket.addEventListener("message", (ev) => {
+    try {
+      const msg = JSON.parse(String(ev.data));
+      handleBridgeMessage(msg);
+    } catch (err) {
+      console.error("[airyn] bridge bad message", err);
+    }
+  });
+}
+
+function sendBridge(cmd: { type: "connect" | "disconnect" }): void {
+  if (!bridgeSocket || bridgeSocket.readyState !== 1 /* OPEN */) return;
+  try { bridgeSocket.send(JSON.stringify(cmd)); } catch { /* */ }
+}
+
+interface ServerHello {
+  type: "hello";
+  build: string;
+  port: number;
+  vehicles: Array<{
+    id: string;
+    callsign: string;
+    color: VehicleColor;
+    link: { mode: LinkMode; transport: LinkTransport; endpoint: string };
+  }>;
+}
+
+interface VehicleFramePayload {
+  id: string;
+  flight: boolean;
+  lat: number; lon: number;
+  altitude: number; speed: number; heading: number;
+  gpsActive: boolean; gpsSats: number; gpsHdop: number;
+  insActive: boolean;
+  roll: number; pitch: number; yaw: number;
+  thr: number; vbat: number; armed: boolean;
+  gyroX: number; gyroY: number; gyroZ: number;
+  accelX: number; accelY: number; accelZ: number;
+  baroAlt: number; baroVs: number; baroP: number; baroT: number;
+  batI: number; batUsed: number;
+}
+
+interface ServerFleetFrame {
+  type: "fleet";
+  t: number;
+  flight: boolean;
+  vehicles: VehicleFramePayload[];
+}
+
+interface ServerLogMessage {
+  type: "log";
+  level: "info" | "warn" | "err";
+  tagKey: string;
+  msgKey: string;
+  msgArgs?: (string | number)[];
+}
+
+type ServerMessage = ServerHello | ServerFleetFrame | ServerLogMessage;
+
+function handleBridgeMessage(msg: ServerMessage): void {
+  switch (msg.type) {
+    case "hello":   onHello(msg);       break;
+    case "fleet":   applyFleetFrame(msg); break;
+    case "log":     applyLogFromBridge(msg); break;
+  }
+}
+
+function onHello(hello: ServerHello): void {
+  // Sync per-vehicle config (link, callsign) from the server. If the
+  // server's vehicle id matches an existing one we update in place; if it
+  // is new we add it (and lazily build its Leaflet layers).
+  for (const cfg of hello.vehicles) {
+    let v = state.vehicles.find((x) => x.id === cfg.id);
+    if (!v) {
+      v = makeVehicle(cfg.id, cfg.callsign, cfg.color, cfg.link, 24.787, 121.011, 0);
+      state.vehicles.push(v);
+      setupVehicleLayers(v);
+    } else {
+      v.callsign = cfg.callsign;
+      v.color = cfg.color;
+      v.link = cfg.link;
+    }
+  }
+  if (!state.vehicles.some((v) => v.id === state.activeVehicleId) && state.vehicles[0]) {
+    state.activeVehicleId = state.vehicles[0].id;
+  }
+  renderFleetChips();
+  renderActiveLinkRail();
+  renderLinkPath();
+  renderConnectButton();
+}
+
+function applyFleetFrame(frame: ServerFleetFrame): void {
+  const fleetWasFlying = state.flight;
+  state.flight = frame.flight;
+  serverSimTime = frame.t;
+
+  for (const f of frame.vehicles) {
+    const v = state.vehicles.find((x) => x.id === f.id);
+    if (!v) continue;
+
+    const wasInsActive = v.insActive;
+    const wasFlight = v.flight;
+
+    // Bulk copy from server frame
+    v.flight = f.flight;
+    v.lat = f.lat; v.lon = f.lon;
+    v.altitude = f.altitude; v.speed = f.speed; v.heading = f.heading;
+    v.gpsActive = f.gpsActive; v.gpsSats = f.gpsSats; v.gpsHdop = f.gpsHdop;
+    v.insActive = f.insActive;
+    v.roll = f.roll; v.pitch = f.pitch; v.yaw = f.yaw;
+    v.thr = f.thr; v.vbat = f.vbat; v.armed = f.armed;
+    v.gyroX = f.gyroX; v.gyroY = f.gyroY; v.gyroZ = f.gyroZ;
+    v.accelX = f.accelX; v.accelY = f.accelY; v.accelZ = f.accelZ;
+    v.baroAlt = f.baroAlt; v.baroVs = f.baroVs;
+    v.baroP = f.baroP; v.baroT = f.baroT;
+    v.batI = f.batI; v.batUsed = f.batUsed;
+
+    // Track management lives in the renderer because Leaflet polylines
+    // are renderer-owned. Server tells us insActive; we decide which
+    // polyline to extend.
+    if (!v.flight) {
+      if (wasFlight) {
+        v.gpsTrack = [];
+        v.insTrack = [];
+        if (v.gpsLine) v.gpsLine.setLatLngs([]);
+        if (v.insLine) v.insLine.setLatLngs([]);
+      }
+    } else if (Number.isFinite(v.lat) && Number.isFinite(v.lon)) {
+      // GPS just dropped → seed a fresh INS segment from the last known fix
+      if (!wasInsActive && v.insActive) {
+        v.insTrack = [];
+        if (v.gpsTrack.length > 0) {
+          v.insTrack.push(v.gpsTrack[v.gpsTrack.length - 1]!);
+        }
+      }
+
+      if (v.gpsActive) {
+        v.gpsTrack.push([v.lat, v.lon]);
+        if (v.gpsTrack.length > 800) v.gpsTrack.shift();
+      } else {
+        v.insTrack.push([v.lat, v.lon]);
+        if (v.insTrack.length > 400) v.insTrack.shift();
+      }
+
+      if (v.marker) v.marker.setLatLng([v.lat, v.lon]);
+      if (v.gpsLine) v.gpsLine.setLatLngs(v.gpsTrack);
+      if (v.insLine) v.insLine.setLatLngs(v.insTrack);
+    }
+
+    refreshMarkerClass(v);
+  }
+
   updateRangeRings();
   renderActive();
   renderFleetChips();
+
+  if (fleetWasFlying !== state.flight) {
+    renderActiveLinkRail();
+    renderConnectButton();
+    refreshLedger();
+  }
+}
+
+function applyLogFromBridge(msg: ServerLogMessage): void {
+  pushLog(msg.level, msg.tagKey, msg.msgKey, ...(msg.msgArgs ?? []));
 }
 
 // ---- Render active vehicle into telemetry/sensor DOM ----
@@ -1118,7 +1240,7 @@ function renderActive(): void {
   setText("[data-sens='data-baud']", state.transport === "serial" ? "921600 / 100 Hz" : "— / 100 Hz");
   setText("[data-sens='data-latency']", `${Math.floor(jitter(2, 0.5))} ms`);
   setText("[data-sens='data-loss']", v.gpsActive ? "0.0 %" : "0.4 %");
-  setText("[data-sens='data-rxtx']", `${Math.floor(simTime * 100)} / ${Math.floor(simTime * 12)}`);
+  setText("[data-sens='data-rxtx']", `${Math.floor(serverSimTime * 100)} / ${Math.floor(serverSimTime * 12)}`);
   const dataState = $<HTMLElement>("[data-sens='data-state']");
   if (dataState) {
     dataState.textContent = t("state.connected");
@@ -1132,44 +1254,18 @@ function renderActive(): void {
   setText("[data-plate='sat']", v.gpsActive ? `${v.gpsSats}/${v.gpsSats + 4}` : "0/0");
 }
 
+// startSim / stopSim are now thin wrappers around the bridge.
+// Authoritative simulator state lives in ground/src/bun/sim.ts.
+
 function startSim(): void {
-  if (simTickHandle != null) return;
-  simTime = 0;
-  for (const v of state.vehicles) {
-    v.flight = true;
-    v.gpsActive = true;
-    v.gpsSats = 8;
-    v.gpsHdop = 0.8;
-    v.gpsTrack = [[v.lat, v.lon]];
-    v.insTrack = [];
-    v.insActive = false;
-    v.batUsed = 0;
-    if (v.gpsLine) v.gpsLine.setLatLngs(v.gpsTrack);
-    if (v.insLine) v.insLine.setLatLngs([]);
-  }
-  simTickHandle = setInterval(tickFleet, SIM_DT * 1000);
-  tickFleet();
+  sendBridge({ type: "connect" });
 }
 
 function stopSim(): void {
-  if (simTickHandle != null) {
-    clearInterval(simTickHandle);
-    simTickHandle = null;
-  }
-  simTime = 0;
-  for (const v of state.vehicles) {
-    v.flight = false;
-    v.gpsActive = false;
-    v.insActive = false;
-    v.gpsSats = 0;
-    v.gpsTrack = [];
-    v.insTrack = [];
-    if (v.gpsLine) v.gpsLine.setLatLngs([]);
-    if (v.insLine) v.insLine.setLatLngs([]);
-    refreshMarkerClass(v);
-  }
-  resetTelemetryDisplay();
-  renderFleetChips();
+  sendBridge({ type: "disconnect" });
+  // The server will send a final "fleet" frame with flight=false; that
+  // resets the displays. We don't local-clear here because that would
+  // race with in-flight frames from the bridge.
 }
 
 function resetTelemetryDisplay(): void {
@@ -1676,6 +1772,9 @@ function init(): void {
   renderLinkPath();
   renderActiveLinkRail();
   renderConnectButton();
+
+  // Open WebSocket to ground/src/bun simulator/bridge.
+  connectBridge();
 
   tickClock();
   setInterval(tickClock, 1000);
