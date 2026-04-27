@@ -261,6 +261,8 @@ button { cursor: pointer; }
 
 .rail-val[data-state="offline"] { color: var(--accent-ir); }
 .rail-val[data-state="ok"] { color: var(--accent-ok); }
+.rail-val[data-state="direct"] { color: var(--accent-ochre); }
+.rail-val[data-state="via"] { color: var(--accent-ice); }
 
 .rail-dot {
   width: 6px; height: 6px;

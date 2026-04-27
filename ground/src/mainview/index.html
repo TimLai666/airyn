@@ -42,13 +42,13 @@
           </span>
           <span class="rail-foot" data-i18n="rail.flight.foot">no telemetry stream</span>
         </div>
-        <div class="rail-item" data-rail="mission">
-          <span class="rail-key" data-i18n="rail.mission.key">MISSION LINK</span>
-          <span class="rail-val" data-state="offline">
+        <div class="rail-item" data-rail="linkpath">
+          <span class="rail-key" data-i18n="rail.linkpath.key">LINK PATH</span>
+          <span class="rail-val" data-state="direct">
             <span class="rail-dot"></span>
-            <span class="rail-val-text" data-i18n="val.offline">OFFLINE</span>
+            <span class="rail-val-text" data-i18n="linkpath.direct">DIRECT TO FC</span>
           </span>
-          <span class="rail-foot" data-i18n="rail.mission.foot">awaiting handshake</span>
+          <span class="rail-foot" data-i18n="rail.linkpath.foot">—</span>
         </div>
         <div class="rail-item">
           <span class="rail-key" data-i18n="rail.vehicle.key">VEHICLE</span>
@@ -66,12 +66,8 @@
         </div>
         <div class="rail-actions">
           <button class="op-btn op-btn--primary" type="button" data-action="connect-flight">
-            <span class="op-btn-label" data-i18n="btn.connect_flight">CONNECT FLIGHT</span>
-            <span class="op-btn-meta" data-i18n="btn.connect_flight.meta">SERIAL · UDP</span>
-          </button>
-          <button class="op-btn" type="button" data-action="connect-mission">
-            <span class="op-btn-label" data-i18n="btn.connect_mission">CONNECT MISSION</span>
-            <span class="op-btn-meta" data-i18n="btn.connect_mission.meta">VIA MISSION</span>
+            <span class="op-btn-label" data-i18n="btn.connect_flight">CONNECT</span>
+            <span class="op-btn-meta">DIRECT TO FC</span>
           </button>
         </div>
       </section>

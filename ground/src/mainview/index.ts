@@ -23,13 +23,27 @@ type Transport = "serial" | "udp" | "mission";
 type LogLevel = "info" | "telem" | "warn" | "err";
 type LogFilter = "all" | LogLevel;
 type VehicleColor = "ochre" | "ice" | "ok";
+type LinkMode = "direct" | "via-mission";
+type LinkTransport = "serial" | "udp" | "tcp" | "ws";
 
 declare const L: any;
+
+interface VehicleLink {
+  // How ground reaches the flight controller.
+  //   "direct"      — ground connects straight to the FC (serial / UDP)
+  //   "via-mission" — ground talks to an onboard mission computer; the
+  //                   mission computer relays to the FC. The two paths
+  //                   are mutually exclusive on the same airframe.
+  mode: LinkMode;
+  transport: LinkTransport;
+  endpoint: string;          // human-readable target: "COM3 @ 921600", "127.0.0.1:14550", "airyn-mc-01.local:7700"
+}
 
 interface Vehicle {
   id: string;
   callsign: string;
   color: VehicleColor;
+  link: VehicleLink;
   flight: boolean;
   // position (lat/lon truth, regardless of GPS)
   lat: number;
@@ -96,16 +110,18 @@ const dicts: Record<Lang, Record<string, string>> = {
     "meta.sector": "區域 · 測試平台",
     "meta.frame": "QUAD-X · 角速度",
 
-    "rail.flight.key": "飛控連線",
-    "rail.mission.key": "任務電腦連線",
+    "rail.flight.key": "連線狀態",
+    "rail.linkpath.key": "連線路徑",
     "rail.vehicle.key": "載具",
     "rail.mode.key": "模式",
     "rail.flight.foot": "尚無遙測串流",
     "rail.flight.foot.connected": "100 Hz · 0 ms 延遲",
-    "rail.mission.foot": "等待握手",
-    "rail.mission.foot.connected": "已連線",
+    "rail.flight.foot.via_mission": "100 Hz · 經任務電腦轉送",
+    "rail.linkpath.foot": "—",
     "rail.vehicle.foot": "quad-x · rp2350a",
     "rail.mode.foot": "工作台配置 · 安全",
+    "linkpath.direct": "地面直連飛控",
+    "linkpath.via_mission": "經機載任務電腦",
 
     "val.offline": "離線",
     "val.online": "已連線",
@@ -114,14 +130,10 @@ const dicts: Record<Lang, Record<string, string>> = {
     "val.armed.no": "否",
     "val.armed.yes": "是",
 
-    "btn.connect_flight": "連線飛控",
-    "btn.connect_flight.meta": "SERIAL · UDP",
-    "btn.disconnect_flight": "中斷飛控",
+    "btn.connect_flight": "連線",
+    "btn.connect_flight.meta": "{0}",
+    "btn.disconnect_flight": "中斷連線",
     "btn.disconnect_flight.meta": "SHIFT+RETURN",
-    "btn.connect_mission": "連線任務電腦",
-    "btn.connect_mission.meta": "透過任務電腦",
-    "btn.disconnect_mission": "中斷任務",
-    "btn.disconnect_mission.meta": "—",
 
     "tab.map": "地圖",
     "tab.cameras": "攝影機",
@@ -301,7 +313,8 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.map_origin": "地形圖原點 · 24°47′12″N 121°00′32″E",
     "log.msg.no_fc": "未偵測到飛控 · 待機",
     "log.msg.ready": "操作員介面就緒 · 等待連線",
-    "log.msg.connected": "飛控已連線 · 遙測 100 Hz",
+    "log.msg.connected": "飛控已連線 · 遙測 100 Hz · {0}",
+    "log.msg.connected_via_mission": "任務電腦握手成功 · {0} → 中繼飛控遙測",
     "log.msg.disconnected": "飛控連線中斷",
     "log.msg.gps_fix": "GPS 取得 3D 定位 · {0} 顆衛星",
     "log.msg.cal_capture": "已擷取校準姿勢 {0} / 步驟 {1}",
@@ -351,16 +364,18 @@ const dicts: Record<Lang, Record<string, string>> = {
     "meta.sector": "SECTOR · TESTBENCH",
     "meta.frame": "QUAD-X · RATE",
 
-    "rail.flight.key": "FLIGHT LINK",
-    "rail.mission.key": "MISSION LINK",
+    "rail.flight.key": "LINK",
+    "rail.linkpath.key": "LINK PATH",
     "rail.vehicle.key": "VEHICLE",
     "rail.mode.key": "MODE",
     "rail.flight.foot": "no telemetry stream",
     "rail.flight.foot.connected": "100 Hz · 0 ms latency",
-    "rail.mission.foot": "awaiting handshake",
-    "rail.mission.foot.connected": "linked",
+    "rail.flight.foot.via_mission": "100 Hz · relayed via mission computer",
+    "rail.linkpath.foot": "—",
     "rail.vehicle.foot": "quad-x · rp2350a",
     "rail.mode.foot": "bench config · safe",
+    "linkpath.direct": "DIRECT TO FC",
+    "linkpath.via_mission": "VIA ONBOARD MC",
 
     "val.offline": "OFFLINE",
     "val.online": "ONLINE",
@@ -369,14 +384,10 @@ const dicts: Record<Lang, Record<string, string>> = {
     "val.armed.no": "NO",
     "val.armed.yes": "YES",
 
-    "btn.connect_flight": "CONNECT FLIGHT",
-    "btn.connect_flight.meta": "SERIAL · UDP",
-    "btn.disconnect_flight": "DISCONNECT FLIGHT",
+    "btn.connect_flight": "CONNECT",
+    "btn.connect_flight.meta": "{0}",
+    "btn.disconnect_flight": "DISCONNECT",
     "btn.disconnect_flight.meta": "SHIFT+RETURN",
-    "btn.connect_mission": "CONNECT MISSION",
-    "btn.connect_mission.meta": "VIA MISSION",
-    "btn.disconnect_mission": "DISCONNECT MISSION",
-    "btn.disconnect_mission.meta": "—",
 
     "tab.map": "MAP",
     "tab.cameras": "CAMERAS",
@@ -556,7 +567,8 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.map_origin": "Terrain plate origin · 24°47′12″N 121°00′32″E",
     "log.msg.no_fc": "No flight controller detected · idle",
     "log.msg.ready": "Operator view ready · awaiting connect",
-    "log.msg.connected": "Flight controller connected · telemetry 100 Hz",
+    "log.msg.connected": "Flight controller connected · telemetry 100 Hz · {0}",
+    "log.msg.connected_via_mission": "Mission computer handshake OK · {0} → relaying flight controller telemetry",
     "log.msg.disconnected": "Flight controller disconnected",
     "log.msg.gps_fix": "GPS acquired 3D fix · {0} satellites",
     "log.msg.cal_capture": "Captured calibration pose {0} for step {1}",
@@ -608,12 +620,13 @@ function makeVehicle(
   id: string,
   callsign: string,
   color: VehicleColor,
+  link: VehicleLink,
   lat: number,
   lon: number,
   heading: number,
 ): Vehicle {
   return {
-    id, callsign, color,
+    id, callsign, color, link,
     flight: false,
     lat, lon,
     altitude: 0,
@@ -636,11 +649,18 @@ function makeVehicle(
 }
 
 // Hsinchu testbench area (24.787 N, 121.011 E) — three demo vehicles
+// covering both link paths the project supports.
 function makeFleet(): Vehicle[] {
   return [
-    makeVehicle("v1", "AIRYN-01", "ochre", 24.78670, 121.00890, 45),
-    makeVehicle("v2", "AIRYN-02", "ice",   24.79100, 121.01620, 270),
-    makeVehicle("v3", "AIRYN-03", "ok",    24.78320, 121.00500, 135),
+    makeVehicle("v1", "AIRYN-01", "ochre",
+      { mode: "direct",      transport: "serial", endpoint: "COM3 @ 921600" },
+      24.78670, 121.00890, 45),
+    makeVehicle("v2", "AIRYN-02", "ice",
+      { mode: "via-mission", transport: "ws",     endpoint: "airyn-mc-02.local:7700" },
+      24.79100, 121.01620, 270),
+    makeVehicle("v3", "AIRYN-03", "ok",
+      { mode: "direct",      transport: "udp",    endpoint: "127.0.0.1:14550" },
+      24.78320, 121.00500, 135),
   ];
 }
 
@@ -913,6 +933,9 @@ function setActiveVehicle(id: string, recenter: boolean): void {
   }
   renderFleetChips();
   renderActive();
+  renderLinkPath();
+  renderActiveLinkRail();
+  renderConnectButton();
   pushLog("info", "log.tag.ui", "log.msg.veh_select", next.callsign);
 }
 
@@ -927,10 +950,13 @@ function renderFleetChips(): void {
     btn.className = "fleet-chip" + (v.id === state.activeVehicleId ? " is-active" : "");
     btn.dataset["vid"] = v.id;
     btn.dataset["state"] = v.flight ? (v.insActive ? "ins" : "connected") : "offline";
+    btn.title = `${v.callsign} · ${v.link.mode === "via-mission" ? "via mission computer" : "direct to flight controller"} · ${v.link.transport.toUpperCase()} ${v.link.endpoint}`;
+    const linkBadge = v.link.mode === "via-mission" ? "MC" : "FC";
+    const stateBadge = v.flight ? (v.insActive ? " · INS" : "") : "";
     btn.innerHTML =
       '<span class="fleet-chip-dot"></span>' +
       `<span>${escapeHtml(v.callsign)}</span>` +
-      `<span class="fleet-chip-meta">${v.flight ? (v.insActive ? "INS" : "GPS") : "—"}</span>`;
+      `<span class="fleet-chip-meta">${linkBadge}${stateBadge}</span>`;
     btn.addEventListener("click", () => setActiveVehicle(v.id, true));
     wrap.appendChild(btn);
   }
@@ -1224,26 +1250,67 @@ function resetTelemetryDisplay(): void {
 
 // ---------- 8. Connect / disconnect ----------
 
-function setFlightConnected(on: boolean): void {
-  state.flight = on;
+function renderLinkPath(): void {
+  const v = activeVehicle();
+  const valEl = $<HTMLElement>("[data-rail='linkpath'] .rail-val-text");
+  const dotWrap = $<HTMLElement>("[data-rail='linkpath'] .rail-val");
+  const footEl = $<HTMLElement>("[data-rail='linkpath'] .rail-foot");
+  if (valEl) valEl.textContent = v.link.mode === "via-mission" ? t("linkpath.via_mission") : t("linkpath.direct");
+  if (dotWrap) dotWrap.dataset["state"] = v.link.mode === "via-mission" ? "via" : "direct";
+  if (footEl) footEl.textContent = `${v.link.transport.toUpperCase()} · ${v.link.endpoint}`;
+}
+
+function renderConnectButton(): void {
+  const v = activeVehicle();
+  const connectBtn = $<HTMLElement>("[data-action='connect-flight']");
+  if (!connectBtn) return;
+  const label = connectBtn.querySelector<HTMLElement>(".op-btn-label");
+  const meta = connectBtn.querySelector<HTMLElement>(".op-btn-meta");
+  if (label) label.textContent = v.flight ? t("btn.disconnect_flight") : t("btn.connect_flight");
+  const metaTxt = v.link.mode === "via-mission" ? t("linkpath.via_mission") : t("linkpath.direct");
+  if (meta) meta.textContent = v.flight ? t("btn.disconnect_flight.meta") : metaTxt;
+}
+
+function renderActiveLinkRail(): void {
+  const v = activeVehicle();
   const valEl = $<HTMLElement>("[data-rail='flight'] .rail-val-text");
   const dotWrap = $<HTMLElement>("[data-rail='flight'] .rail-val");
   const footEl = $<HTMLElement>("[data-rail='flight'] .rail-foot");
+  if (valEl) valEl.textContent = v.flight ? t("val.online") : t("val.offline");
+  if (dotWrap) dotWrap.dataset["state"] = v.flight ? "ok" : "offline";
+  if (footEl) {
+    if (!v.flight) footEl.textContent = t("rail.flight.foot");
+    else if (v.link.mode === "via-mission") footEl.textContent = t("rail.flight.foot.via_mission");
+    else footEl.textContent = t("rail.flight.foot.connected");
+  }
+}
 
-  if (valEl) valEl.textContent = on ? t("val.online") : t("val.offline");
-  if (dotWrap) dotWrap.dataset["state"] = on ? "ok" : "offline";
-  if (footEl) footEl.textContent = on ? t("rail.flight.foot.connected") : t("rail.flight.foot");
+function setFlightConnected(on: boolean): void {
+  // Drive the whole demo fleet from this single toggle for now.
+  // In a real client each vehicle's link is opened/closed independently
+  // by ground/src/bun once the IPC bridge lands.
+  state.flight = on;
 
-  // primary connect button toggles
-  const connectBtn = $<HTMLElement>("[data-action='connect-flight']");
-  if (connectBtn) {
-    const label = connectBtn.querySelector<HTMLElement>(".op-btn-label");
-    const meta = connectBtn.querySelector<HTMLElement>(".op-btn-meta");
-    if (label) label.textContent = on ? t("btn.disconnect_flight") : t("btn.connect_flight");
-    if (meta) meta.textContent = on ? t("btn.disconnect_flight.meta") : t("btn.connect_flight.meta");
+  if (on) {
+    startSim();
+    for (const veh of state.vehicles) {
+      const meta = `${veh.link.transport.toUpperCase()} · ${veh.link.endpoint}`;
+      if (veh.link.mode === "via-mission") {
+        pushLog("info", "log.tag.link", "log.msg.connected_via_mission", meta);
+      } else {
+        pushLog("info", "log.tag.link", "log.msg.connected", meta);
+      }
+    }
+    setTimeout(() => pushLog("info", "log.tag.gps", "log.msg.gps_fix", 14), 3000);
+  } else {
+    stopSim();
+    pushLog("warn", "log.tag.link", "log.msg.disconnected");
   }
 
-  // settings transport status
+  renderActiveLinkRail();
+  renderLinkPath();
+  renderConnectButton();
+
   const transportStatus = $<HTMLElement>("[data-status='transport']");
   if (transportStatus) {
     transportStatus.textContent = on ? t("state.connected") : t("state.disconnected");
@@ -1251,35 +1318,7 @@ function setFlightConnected(on: boolean): void {
     transportStatus.classList.toggle("state--off", !on);
   }
 
-  if (on) {
-    startSim();
-    pushLog("info", "log.tag.link", "log.msg.connected");
-    setTimeout(() => pushLog("info", "log.tag.gps", "log.msg.gps_fix", 14), 3000);
-  } else {
-    stopSim();
-    pushLog("warn", "log.tag.link", "log.msg.disconnected");
-  }
-
   refreshLedger();
-}
-
-function setMissionConnected(on: boolean): void {
-  state.mission = on;
-  const valEl = $<HTMLElement>("[data-rail='mission'] .rail-val-text");
-  const dotWrap = $<HTMLElement>("[data-rail='mission'] .rail-val");
-  const footEl = $<HTMLElement>("[data-rail='mission'] .rail-foot");
-
-  if (valEl) valEl.textContent = on ? t("val.online") : t("val.offline");
-  if (dotWrap) dotWrap.dataset["state"] = on ? "ok" : "offline";
-  if (footEl) footEl.textContent = on ? t("rail.mission.foot.connected") : t("rail.mission.foot");
-
-  const btn = $<HTMLElement>("[data-action='connect-mission']");
-  if (btn) {
-    const label = btn.querySelector<HTMLElement>(".op-btn-label");
-    const meta = btn.querySelector<HTMLElement>(".op-btn-meta");
-    if (label) label.textContent = on ? t("btn.disconnect_mission") : t("btn.connect_mission");
-    if (meta) meta.textContent = on ? t("btn.disconnect_mission.meta") : t("btn.connect_mission.meta");
-  }
 }
 
 function refreshLedger(): void {
@@ -1504,8 +1543,9 @@ function setLang(lang: Lang): void {
   applyI18n();
   // refresh dynamic UI fragments not handled by data-i18n
   setCam(state.cam);
-  setFlightConnected(state.flight); // re-renders rail labels
-  setMissionConnected(state.mission);
+  renderActiveLinkRail();
+  renderLinkPath();
+  renderConnectButton();
   refreshLedger();
   renderCalPrompt();
   renderWaypointTable();
@@ -1549,12 +1589,9 @@ function bind(): void {
   $<HTMLElement>("[data-action='rec']")?.addEventListener("click", toggleRec);
   $<HTMLElement>("[data-action='ir-opt']")?.addEventListener("click", toggleIROpt);
 
-  // Connect buttons (rail)
+  // Connect button (rail) — drives the whole fleet for now
   $<HTMLElement>("[data-action='connect-flight']")?.addEventListener("click", () => {
     setFlightConnected(!state.flight);
-  });
-  $<HTMLElement>("[data-action='connect-mission']")?.addEventListener("click", () => {
-    setMissionConnected(!state.mission);
   });
   // Settings connect / disconnect
   $<HTMLElement>("[data-action='settings-connect']")?.addEventListener("click", () => {
@@ -1636,6 +1673,9 @@ function init(): void {
   refreshLedger();
   resetTelemetryDisplay();
   renderActive();
+  renderLinkPath();
+  renderActiveLinkRail();
+  renderConnectButton();
 
   tickClock();
   setInterval(tickClock, 1000);
