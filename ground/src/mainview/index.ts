@@ -939,30 +939,69 @@ function setActiveVehicle(id: string, recenter: boolean): void {
   pushLog("info", "log.tag.ui", "log.msg.veh_select", next.callsign);
 }
 
+/**
+ * Diff-based chip render. We never wipe and rebuild the chip DOM because
+ * fleet frames fire at 10 Hz; rewriting innerHTML in the middle of a
+ * mousedown/mouseup pair would kill the click. Instead each chip element
+ * is created once on first sight and only its mutable bits (state dot,
+ * meta badge, active class, tooltip) get updated on subsequent calls.
+ */
+function setTextIfChanged(el: Element | null, text: string): void {
+  if (el && el.textContent !== text) el.textContent = text;
+}
+
 function renderFleetChips(): void {
   const wrap = $<HTMLElement>("#fleet-chips");
   const meta = $<HTMLElement>("#fleet-meta");
   if (!wrap) return;
-  wrap.innerHTML = "";
+
+  const existing = new Map<string, HTMLButtonElement>();
+  for (const child of Array.from(wrap.children)) {
+    if (child instanceof HTMLButtonElement && child.dataset["vid"]) {
+      existing.set(child.dataset["vid"]!, child);
+    }
+  }
+  const wantedIds = new Set(state.vehicles.map((v) => v.id));
+
+  // Drop chips for vehicles that are no longer in the fleet.
+  for (const [id, el] of existing) {
+    if (!wantedIds.has(id)) el.remove();
+  }
+
   for (const v of state.vehicles) {
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "fleet-chip" + (v.id === state.activeVehicleId ? " is-active" : "");
-    btn.dataset["vid"] = v.id;
-    btn.dataset["state"] = v.flight ? (v.insActive ? "ins" : "connected") : "offline";
-    btn.title = `${v.callsign} · ${v.link.mode === "via-mission" ? "via mission computer" : "direct to flight controller"} · ${v.link.transport.toUpperCase()} ${v.link.endpoint}`;
+    let btn = existing.get(v.id);
+    if (!btn) {
+      btn = document.createElement("button");
+      btn.type = "button";
+      btn.dataset["vid"] = v.id;
+      btn.className = "fleet-chip";
+      btn.innerHTML =
+        '<span class="fleet-chip-dot"></span>' +
+        '<span class="fleet-chip-name"></span>' +
+        '<span class="fleet-chip-meta"></span>';
+      btn.addEventListener("click", () => setActiveVehicle(v.id, true));
+      wrap.appendChild(btn);
+    }
+
+    const stateVal = v.flight ? (v.insActive ? "ins" : "connected") : "offline";
+    if (btn.dataset["state"] !== stateVal) btn.dataset["state"] = stateVal;
+    const isActive = v.id === state.activeVehicleId;
+    btn.classList.toggle("is-active", isActive);
+
+    const tip = `${v.callsign} · ${
+      v.link.mode === "via-mission" ? "via mission computer" : "direct to flight controller"
+    } · ${v.link.transport.toUpperCase()} ${v.link.endpoint}`;
+    if (btn.title !== tip) btn.title = tip;
+
+    setTextIfChanged(btn.querySelector(".fleet-chip-name"), v.callsign);
     const linkBadge = v.link.mode === "via-mission" ? "MC" : "FC";
     const stateBadge = v.flight ? (v.insActive ? " · INS" : "") : "";
-    btn.innerHTML =
-      '<span class="fleet-chip-dot"></span>' +
-      `<span>${escapeHtml(v.callsign)}</span>` +
-      `<span class="fleet-chip-meta">${linkBadge}${stateBadge}</span>`;
-    btn.addEventListener("click", () => setActiveVehicle(v.id, true));
-    wrap.appendChild(btn);
+    setTextIfChanged(btn.querySelector(".fleet-chip-meta"), `${linkBadge}${stateBadge}`);
   }
+
   if (meta) {
     const online = state.vehicles.filter((v) => v.flight).length;
-    meta.textContent = t("fleet.summary", online, state.vehicles.length);
+    setTextIfChanged(meta, t("fleet.summary", online, state.vehicles.length));
   }
 }
 

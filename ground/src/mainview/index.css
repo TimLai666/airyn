@@ -1814,8 +1814,15 @@ html[lang="zh"] .cal-prompt-title { letter-spacing: 0; }
    Custom drone marker (divIcon)
    ============================================================ */
 
+/*
+  No `position` declaration here — Leaflet's `.leaflet-marker-icon` sets
+  `position: absolute` and uses transform for placement. Overriding to
+  `relative` puts markers back into normal flow and lets each one push
+  the next down by its own height, which manifests as drift after a
+  zoom (Leaflet recomputes the per-marker transform but the cumulative
+  flow offset is already baked in).
+*/
 .airyn-marker {
-  position: relative;
   pointer-events: auto;
 }
 
