@@ -31,6 +31,7 @@ interface SimVehicle {
   link: VehicleLink;
   // mutable state
   flight: boolean;
+  // truth (always up to date in god-mode while flying)
   lat: number;
   lon: number;
   altitude: number;
@@ -46,6 +47,9 @@ interface SimVehicle {
   accelX: number; accelY: number; accelZ: number;
   baroAlt: number; baroVs: number; baroP: number; baroT: number;
   batI: number; batUsed: number;
+  // link health & frozen frame for emission while link is down
+  linkActive: boolean;
+  frozenFrame: VehicleFrame | null;
 }
 
 function makeVehicle(
@@ -74,6 +78,8 @@ function makeVehicle(
     accelX: 0, accelY: 0, accelZ: 1,
     baroAlt: 0, baroVs: 0, baroP: 1013.2, baroT: 24.5,
     batI: 0, batUsed: 0,
+    linkActive: true,
+    frozenFrame: null,
   };
 }
 
@@ -128,16 +134,36 @@ function tickVehicle(v: SimVehicle): void {
 
   const hash = vehicleHash(v.id);
 
+  // ---- Link-loss pattern (aircraft ↔ ground): 60 s cycle, 10 s drop ----
+  // Distinct from GPS-loss. When link is down we don't get telemetry at
+  // all; the bridge will keep emitting a frozen frame so the renderer
+  // knows to switch to ground-side prediction instead of trusting stale
+  // values as if they were live.
+  const linkPhase = (simTime + ((hash * 17) % 60)) % 60;
+  const linkActive = !(linkPhase >= 50 && linkPhase < 60);
+  const wasLinkActive = v.linkActive;
+  v.linkActive = linkActive;
+
+  if (wasLinkActive && !linkActive) {
+    // Snapshot what the renderer last knew so we can keep echoing it.
+    v.frozenFrame = liveFrame(v);
+    pushLog("err", "log.tag.link", "log.msg.link_lost", v.callsign,
+      v.lat.toFixed(5), v.lon.toFixed(5));
+  } else if (!wasLinkActive && linkActive) {
+    v.frozenFrame = null;
+    pushLog("info", "log.tag.link", "log.msg.link_resume", v.callsign);
+  }
+
   // GPS dropout pattern: each vehicle drops at a different phase.
   const phase = (simTime + (hash % 30)) % 30;
   const gpsActive = !(phase >= 22 && phase < 30);
   const wasActive = v.gpsActive;
   v.gpsActive = gpsActive;
 
-  if (wasActive && !gpsActive) {
+  if (wasActive && !gpsActive && linkActive) {
     v.insActive = true;
     pushLog("warn", "log.tag.ins", "log.msg.gps_lost", v.callsign);
-  } else if (!wasActive && gpsActive) {
+  } else if (!wasActive && gpsActive && linkActive) {
     v.insActive = false;
     pushLog("info", "log.tag.gps", "log.msg.gps_resume", v.callsign);
   }
@@ -180,10 +206,11 @@ function tickVehicle(v: SimVehicle): void {
   v.batUsed += (v.batI * SIM_DT) / 3.6;
 }
 
-function toFrame(v: SimVehicle): VehicleFrame {
+function liveFrame(v: SimVehicle): VehicleFrame {
   return {
     id: v.id,
     flight: v.flight,
+    linkActive: true,
     lat: v.lat, lon: v.lon,
     altitude: v.altitude, speed: v.speed, heading: v.heading,
     gpsActive: v.gpsActive, gpsSats: v.gpsSats, gpsHdop: v.gpsHdop,
@@ -195,6 +222,16 @@ function toFrame(v: SimVehicle): VehicleFrame {
     baroAlt: v.baroAlt, baroVs: v.baroVs, baroP: v.baroP, baroT: v.baroT,
     batI: v.batI, batUsed: v.batUsed,
   };
+}
+
+function toFrame(v: SimVehicle): VehicleFrame {
+  // While link is down, keep echoing the snapshot we took at the moment
+  // of loss with linkActive flipped to false. The renderer uses that
+  // signal to switch to its own dead-reckoning prediction.
+  if (!v.linkActive && v.frozenFrame) {
+    return { ...v.frozenFrame, linkActive: false, flight: v.flight };
+  }
+  return liveFrame(v);
 }
 
 function tickFleet(): void {
@@ -259,6 +296,8 @@ export function startVehicle(id: string): void {
   v.gpsHdop = 0.8;
   v.insActive = false;
   v.batUsed = 0;
+  v.linkActive = true;
+  v.frozenFrame = null;
 
   if (v.link.mode === "via-mission") {
     pushLog("info", "log.tag.link", "log.msg.connected_via_mission", v.callsign, `${v.link.transport.toUpperCase()} · ${v.link.endpoint}`);
@@ -280,6 +319,8 @@ export function stopVehicle(id: string): void {
   v.gpsActive = false;
   v.insActive = false;
   v.gpsSats = 0;
+  v.linkActive = true;          // operator-initiated: not a link failure
+  v.frozenFrame = null;
   pushLog("warn", "log.tag.link", "log.msg.disconnected", v.callsign);
   emitSnapshot();
   maybeStopTick();

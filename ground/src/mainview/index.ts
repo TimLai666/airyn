@@ -45,21 +45,26 @@ interface Vehicle {
   color: VehicleColor;
   link: VehicleLink;
   flight: boolean;
-  // position (lat/lon truth, regardless of GPS)
+  /** aircraft ↔ ground link health. false → telemetry has stalled. */
+  linkActive: boolean;
+  // last-known position (frozen while !linkActive)
   lat: number;
   lon: number;
-  altitude: number;       // m AGL
-  speed: number;          // m/s ground speed
-  heading: number;        // deg, 0=N, 90=E
-  // GPS state (simulated)
+  altitude: number;
+  speed: number;
+  heading: number;
+  // GPS state (as last reported by the aircraft)
   gpsActive: boolean;
   gpsSats: number;
   gpsHdop: number;
-  // dead-reckoning fallback while GPS lost
+  // aircraft is dead-reckoning onboard with IMU (link still up)
   insActive: boolean;
-  // history
-  gpsTrack: [number, number][];     // continuous polyline (drops appends during INS)
-  insTrack: [number, number][];     // current dropout segment
+  // history (renderer-owned, built from incoming frames)
+  gpsTrack: [number, number][];   // continuous polyline (paused during INS or link loss)
+  insTrack: [number, number][];   // aircraft-side INS segment, while gpsActive=false but linkActive=true
+  predictedTrack: [number, number][]; // ground-side prediction segment, while !linkActive
+  /** Snapshot at the moment of link loss; used by the prediction tick. */
+  predictionStart: { lat: number; lon: number; heading: number; speed: number; tMs: number } | null;
   // attitude / telemetry
   roll: number; pitch: number; yaw: number;
   thr: number; vbat: number; armed: boolean;
@@ -72,6 +77,7 @@ interface Vehicle {
   marker: any;
   gpsLine: any;
   insLine: any;
+  predictedLine: any;
 }
 
 interface State {
@@ -146,11 +152,14 @@ const dicts: Record<Lang, Record<string, string>> = {
     "fleet.key": "機隊",
     "fleet.summary": "{0} / {1} 機已連線",
     "map.legend.gps": "GPS 軌跡",
-    "map.legend.ins": "INS 慣性推算",
+    "map.legend.ins": "INS 慣性推算（機載）",
+    "map.legend.predicted": "預測軌跡（失聯）",
     "map.legend.ring": "距離圈",
     "log.tag.ins": "INS",
-    "log.msg.gps_lost": "{0} GPS 信號中斷 · 切換為慣性推算",
-    "log.msg.gps_resume": "{0} GPS 重新取得 · 慣性推算解除",
+    "log.msg.gps_lost": "{0} GPS 信號中斷 · 機載 INS 接管",
+    "log.msg.gps_resume": "{0} GPS 重新取得 · 機載 INS 解除",
+    "log.msg.link_lost": "{0} 與地面失去連線 · 凍結於 ({1}, {2}) · 改用地面端推算",
+    "log.msg.link_resume": "{0} 連線恢復",
     "log.msg.fleet_connect": "機隊連線 · {0} 機在線",
     "log.msg.fleet_disconnect": "機隊全部離線",
     "log.msg.veh_select": "切換主控載具 · {0}",
@@ -400,11 +409,14 @@ const dicts: Record<Lang, Record<string, string>> = {
     "fleet.key": "FLEET",
     "fleet.summary": "{0} OF {1} ONLINE",
     "map.legend.gps": "GPS TRACK",
-    "map.legend.ins": "INS DEAD-RECKON",
+    "map.legend.ins": "INS DEAD-RECKON (ONBOARD)",
+    "map.legend.predicted": "PREDICTED (LINK LOST)",
     "map.legend.ring": "RANGE RINGS",
     "log.tag.ins": "INS",
-    "log.msg.gps_lost": "{0} GPS lost · falling back to dead-reckoning",
-    "log.msg.gps_resume": "{0} GPS reacquired · INS released",
+    "log.msg.gps_lost": "{0} GPS lost · onboard INS taking over",
+    "log.msg.gps_resume": "{0} GPS reacquired · onboard INS released",
+    "log.msg.link_lost": "{0} link to ground LOST · frozen at ({1}, {2}) · ground prediction engaged",
+    "log.msg.link_resume": "{0} link restored",
     "log.msg.fleet_connect": "Fleet connected · {0} online",
     "log.msg.fleet_disconnect": "Fleet disconnected",
     "log.msg.veh_select": "Active vehicle · {0}",
@@ -628,6 +640,7 @@ function makeVehicle(
   return {
     id, callsign, color, link,
     flight: false,
+    linkActive: true,
     lat, lon,
     altitude: 0,
     speed: 8,            // m/s default cruise once connected
@@ -638,13 +651,15 @@ function makeVehicle(
     insActive: false,
     gpsTrack: [],
     insTrack: [],
+    predictedTrack: [],
+    predictionStart: null,
     roll: 0, pitch: 0, yaw: heading,
     thr: 0, vbat: 0, armed: false,
     gyroX: 0, gyroY: 0, gyroZ: 0,
     accelX: 0, accelY: 0, accelZ: 1,
     baroAlt: 0, baroVs: 0, baroP: 1013.2, baroT: 24.5,
     batI: 0, batUsed: 0,
-    marker: null, gpsLine: null, insLine: null,
+    marker: null, gpsLine: null, insLine: null, predictedLine: null,
   };
 }
 
@@ -887,6 +902,9 @@ function setupVehicleLayers(v: Vehicle): void {
   const gpsColor = v.color === "ice" ? "#6c97a3" : v.color === "ok" ? "#7ea081" : "#d18b48";
   v.gpsLine = L.polyline([], { color: gpsColor, weight: 2, opacity: 0.85, smoothFactor: 1.5 }).addTo(leafletMap);
   v.insLine = L.polyline([], { color: "#d24a3a", weight: 2, opacity: 0.75, dashArray: "4 5", smoothFactor: 1 }).addTo(leafletMap);
+  // Ground-side prediction during link loss — yellow long-dash so it's
+  // visually distinct from the aircraft's onboard INS (red short-dash).
+  v.predictedLine = L.polyline([], { color: "#e8c34a", weight: 2, opacity: 0.7, dashArray: "8 6", smoothFactor: 1 }).addTo(leafletMap);
 }
 
 function refreshMarkerClass(v: Vehicle): void {
@@ -894,7 +912,8 @@ function refreshMarkerClass(v: Vehicle): void {
   const el = v.marker.getElement();
   if (!el) return;
   el.classList.toggle("is-active", v.id === state.activeVehicleId);
-  el.classList.toggle("is-ins", v.insActive);
+  el.classList.toggle("is-ins", v.insActive && v.linkActive);
+  el.classList.toggle("is-ghost", v.flight && !v.linkActive);
 }
 
 function updateRangeRings(): void {
@@ -983,7 +1002,11 @@ function renderFleetChips(): void {
       wrap.appendChild(btn);
     }
 
-    const stateVal = v.flight ? (v.insActive ? "ins" : "connected") : "offline";
+    const stateVal =
+      !v.flight ? "offline" :
+      !v.linkActive ? "ghost" :
+      v.insActive ? "ins" :
+      "connected";
     if (btn.dataset["state"] !== stateVal) btn.dataset["state"] = stateVal;
     const isActive = v.id === state.activeVehicleId;
     btn.classList.toggle("is-active", isActive);
@@ -995,7 +1018,11 @@ function renderFleetChips(): void {
 
     setTextIfChanged(btn.querySelector(".fleet-chip-name"), v.callsign);
     const linkBadge = v.link.mode === "via-mission" ? "MC" : "FC";
-    const stateBadge = v.flight ? (v.insActive ? " · INS" : "") : "";
+    const stateBadge =
+      !v.flight ? "" :
+      !v.linkActive ? " · LOST" :
+      v.insActive ? " · INS" :
+      "";
     setTextIfChanged(btn.querySelector(".fleet-chip-meta"), `${linkBadge}${stateBadge}`);
   }
 
@@ -1070,6 +1097,7 @@ interface ServerHello {
 interface VehicleFramePayload {
   id: string;
   flight: boolean;
+  linkActive: boolean;
   lat: number; lon: number;
   altitude: number; speed: number; heading: number;
   gpsActive: boolean; gpsSats: number; gpsHdop: number;
@@ -1142,10 +1170,12 @@ function applyFleetFrame(frame: ServerFleetFrame): void {
     if (!v) continue;
 
     const wasInsActive = v.insActive;
+    const wasLinkActive = v.linkActive;
     const wasFlight = v.flight;
 
     // Bulk copy from server frame
     v.flight = f.flight;
+    v.linkActive = f.linkActive;
     v.lat = f.lat; v.lon = f.lon;
     v.altitude = f.altitude; v.speed = f.speed; v.heading = f.heading;
     v.gpsActive = f.gpsActive; v.gpsSats = f.gpsSats; v.gpsHdop = f.gpsHdop;
@@ -1158,36 +1188,64 @@ function applyFleetFrame(frame: ServerFleetFrame): void {
     v.baroP = f.baroP; v.baroT = f.baroT;
     v.batI = f.batI; v.batUsed = f.batUsed;
 
-    // Track management lives in the renderer because Leaflet polylines
-    // are renderer-owned. Server tells us insActive; we decide which
-    // polyline to extend.
+    // ---- Track management ----
+    // Three independent polylines per vehicle:
+    //   gpsTrack       — appended while linkActive && gpsActive
+    //   insTrack       — appended while linkActive && !gpsActive (aircraft INS)
+    //   predictedTrack — built locally by predictTick while !linkActive
     if (!v.flight) {
       if (wasFlight) {
         v.gpsTrack = [];
         v.insTrack = [];
+        v.predictedTrack = [];
+        v.predictionStart = null;
         if (v.gpsLine) v.gpsLine.setLatLngs([]);
         if (v.insLine) v.insLine.setLatLngs([]);
+        if (v.predictedLine) v.predictedLine.setLatLngs([]);
       }
     } else if (Number.isFinite(v.lat) && Number.isFinite(v.lon)) {
-      // GPS just dropped → seed a fresh INS segment from the last known fix
-      if (!wasInsActive && v.insActive) {
-        v.insTrack = [];
-        if (v.gpsTrack.length > 0) {
-          v.insTrack.push(v.gpsTrack[v.gpsTrack.length - 1]!);
+      // Link-loss edge: snapshot prediction start. The frame's lat/lon
+      // is already frozen on the server side at the moment of loss, so
+      // it's the right anchor for ground-side dead-reckoning.
+      if (wasLinkActive && !v.linkActive) {
+        v.predictionStart = {
+          lat: v.lat, lon: v.lon,
+          heading: v.heading, speed: v.speed,
+          tMs: Date.now(),
+        };
+        v.predictedTrack = [[v.lat, v.lon]];
+        if (v.predictedLine) v.predictedLine.setLatLngs(v.predictedTrack);
+      }
+      // Link-resume edge: archive the prediction; live frames again.
+      if (!wasLinkActive && v.linkActive) {
+        v.predictionStart = null;
+        v.predictedTrack = [];
+        if (v.predictedLine) v.predictedLine.setLatLngs([]);
+      }
+
+      if (v.linkActive) {
+        // GPS just dropped (link still up) → seed a fresh INS segment.
+        if (!wasInsActive && v.insActive) {
+          v.insTrack = [];
+          if (v.gpsTrack.length > 0) {
+            v.insTrack.push(v.gpsTrack[v.gpsTrack.length - 1]!);
+          }
         }
-      }
-
-      if (v.gpsActive) {
-        v.gpsTrack.push([v.lat, v.lon]);
-        if (v.gpsTrack.length > 800) v.gpsTrack.shift();
+        if (v.gpsActive) {
+          v.gpsTrack.push([v.lat, v.lon]);
+          if (v.gpsTrack.length > 800) v.gpsTrack.shift();
+        } else {
+          v.insTrack.push([v.lat, v.lon]);
+          if (v.insTrack.length > 400) v.insTrack.shift();
+        }
+        if (v.marker) v.marker.setLatLng([v.lat, v.lon]);
+        if (v.gpsLine) v.gpsLine.setLatLngs(v.gpsTrack);
+        if (v.insLine) v.insLine.setLatLngs(v.insTrack);
       } else {
-        v.insTrack.push([v.lat, v.lon]);
-        if (v.insTrack.length > 400) v.insTrack.shift();
+        // Link is down. Marker stays at the frozen position; the
+        // prediction tick advances predictedLine independently.
+        if (v.marker) v.marker.setLatLng([v.lat, v.lon]);
       }
-
-      if (v.marker) v.marker.setLatLng([v.lat, v.lon]);
-      if (v.gpsLine) v.gpsLine.setLatLngs(v.gpsTrack);
-      if (v.insLine) v.insLine.setLatLngs(v.insTrack);
     }
 
     refreshMarkerClass(v);
@@ -1210,6 +1268,36 @@ function applyFleetFrame(frame: ServerFleetFrame): void {
 
 function applyLogFromBridge(msg: ServerLogMessage): void {
   pushLog(msg.level, msg.tagKey, msg.msgKey, ...(msg.msgArgs ?? []));
+}
+
+/**
+ * Ground-side dead-reckoning during link loss. Runs at 4 Hz independent
+ * of incoming frames (because the whole point is that frames have stopped
+ * arriving for the affected vehicle). Each tick advances the predicted
+ * polyline by extrapolating from the velocity vector captured at the
+ * moment of loss.
+ *
+ * This is intentionally simple: straight-line, no curve, no gravity, no
+ * wind. The aircraft really is somewhere — we just don't know where, and
+ * a clearly-marked guess is better than no information.
+ */
+function predictTick(): void {
+  for (const v of state.vehicles) {
+    if (!v.flight || v.linkActive || !v.predictionStart) continue;
+    const ps = v.predictionStart;
+    const elapsed = (Date.now() - ps.tMs) / 1000;          // seconds since loss
+    const headRad = (ps.heading * Math.PI) / 180;
+    const dlat = (ps.speed * elapsed * Math.cos(headRad)) / 111111;
+    const denom = 111111 * Math.cos((ps.lat * Math.PI) / 180);
+    const dlon = denom !== 0 ? (ps.speed * elapsed * Math.sin(headRad)) / denom : 0;
+    const predLat = ps.lat + dlat;
+    const predLon = ps.lon + dlon;
+    if (!Number.isFinite(predLat) || !Number.isFinite(predLon)) continue;
+    // Keep the polyline trim — append new endpoint, drop old once long.
+    v.predictedTrack.push([predLat, predLon]);
+    if (v.predictedTrack.length > 200) v.predictedTrack.shift();
+    if (v.predictedLine) v.predictedLine.setLatLngs(v.predictedTrack);
+  }
 }
 
 // ---- Render active vehicle into telemetry/sensor DOM ----
@@ -1797,6 +1885,10 @@ function init(): void {
 
   tickClock();
   setInterval(tickClock, 1000);
+
+  // Ground-side dead-reckoning runs while any vehicle has linkActive=false.
+  // 4 Hz is plenty for a visual cue; nobody is acting on these positions.
+  setInterval(predictTick, 250);
 }
 
 init();

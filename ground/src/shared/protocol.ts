@@ -30,15 +30,33 @@ export interface VehicleConfig {
 export interface VehicleFrame {
   id: string;
   flight: boolean;
-  // truth position; mainview decides which polyline to append to
+  /**
+   * Aircraft ↔ ground link health.
+   *   true  — frames are fresh; everything below is current
+   *   false — link to this aircraft has dropped; the values below are
+   *           a frozen snapshot of the last frame we received from it.
+   *           The renderer should switch to its own dead-reckoning and
+   *           visually mark the vehicle as a ghost.
+   */
+  linkActive: boolean;
+  // last-known position (or live, if linkActive)
   lat: number;
   lon: number;
   altitude: number;
   speed: number;
   heading: number;
+  /**
+   * Aircraft ↔ GPS satellite health, as reported by the aircraft. Only
+   * meaningful when linkActive is true.
+   */
   gpsActive: boolean;
   gpsSats: number;
   gpsHdop: number;
+  /**
+   * Aircraft is dead-reckoning onboard with IMU because GPS is gone but
+   * link is still up. Distinct from ground-side prediction during link
+   * loss.
+   */
   insActive: boolean;
   // attitude / telemetry
   roll: number; pitch: number; yaw: number;

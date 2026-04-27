@@ -1721,6 +1721,17 @@ html[lang="zh"] .cal-prompt-title { letter-spacing: 0; }
   animation: rec-blink 1.6s ease-in-out infinite;
 }
 
+.fleet-chip[data-state="ghost"] {
+  border-style: dashed;
+  color: #e8c34a;
+  border-color: rgba(232, 195, 74, 0.55);
+}
+.fleet-chip[data-state="ghost"] .fleet-chip-dot {
+  background: #6b6055;
+  box-shadow: 0 0 6px #e8c34a;
+  animation: ghost-fade 2.4s ease-in-out infinite;
+}
+
 .fleet-chip-meta {
   font-family: var(--font-mono);
   font-size: 14px;
@@ -1874,6 +1885,32 @@ html[lang="zh"] .cal-prompt-title { letter-spacing: 0; }
 }
 .airyn-marker.is-ins .m-corner { border-color: var(--accent-ir); border-style: dashed; }
 
+/* Ghost: aircraft ↔ ground link is gone. We're guessing the position. */
+.airyn-marker.is-ghost { opacity: 0.6; filter: grayscale(0.7); }
+.airyn-marker.is-ghost .m-corner {
+  border-color: #e8c34a;
+  border-style: dashed;
+  width: 16px; height: 16px;
+}
+.airyn-marker.is-ghost .m-dot {
+  background: #6b6055;
+  box-shadow: 0 0 0 1px #e8c34a;
+  animation: ghost-fade 2.4s ease-in-out infinite;
+}
+.airyn-marker.is-ghost .m-tag {
+  color: #e8c34a;
+}
+.airyn-marker.is-ghost .m-tag::after {
+  content: " · LOST";
+  color: var(--accent-ir);
+  letter-spacing: 0.32em;
+}
+
+@keyframes ghost-fade {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+
 .airyn-marker.color-ice .m-corner { border-color: var(--accent-ice); }
 .airyn-marker.color-ice .m-dot { background: var(--accent-ice); box-shadow: 0 0 10px rgba(108, 151, 163, 0.55); }
 .airyn-marker.color-ice .m-tag { color: var(--accent-ice); }
@@ -1915,6 +1952,10 @@ html[lang="zh"] .cal-prompt-title { letter-spacing: 0; }
 .legend-swatch--gps { background: var(--accent-ochre); }
 .legend-swatch--ins {
   background: linear-gradient(90deg, var(--accent-ir) 0 4px, transparent 4px 8px, var(--accent-ir) 8px 12px, transparent 12px 16px);
+}
+.legend-swatch--predicted {
+  background: linear-gradient(90deg, #e8c34a 0 8px, transparent 8px 14px, #e8c34a 14px 22px);
+  background-size: 22px 100%;
 }
 .legend-swatch--ring {
   background: transparent;
