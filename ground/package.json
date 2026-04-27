@@ -9,7 +9,9 @@
     "dev": "electrobun dev --watch",
     "build": "electrobun build",
     "run": "electrobun run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "postinstall": "node scripts/patch-launcher-dpi.mjs",
+    "patch-dpi": "node scripts/patch-launcher-dpi.mjs"
   },
   "dependencies": {
     "electrobun": "1.16.0"
@@ -17,6 +19,7 @@
   "devDependencies": {
     "@types/bun": "latest",
     "@types/three": "^0.184.0",
+    "rcedit": "^4.0.1",
     "typescript": "^5.9.3"
   }
 }
