@@ -22,6 +22,43 @@ type Lang = "zh" | "en";
 type Transport = "serial" | "udp" | "mission";
 type LogLevel = "info" | "telem" | "warn" | "err";
 type LogFilter = "all" | LogLevel;
+type VehicleColor = "ochre" | "ice" | "ok";
+
+declare const L: any;
+
+interface Vehicle {
+  id: string;
+  callsign: string;
+  color: VehicleColor;
+  flight: boolean;
+  // position (lat/lon truth, regardless of GPS)
+  lat: number;
+  lon: number;
+  altitude: number;       // m AGL
+  speed: number;          // m/s ground speed
+  heading: number;        // deg, 0=N, 90=E
+  // GPS state (simulated)
+  gpsActive: boolean;
+  gpsSats: number;
+  gpsHdop: number;
+  // dead-reckoning fallback while GPS lost
+  insActive: boolean;
+  // history
+  gpsTrack: [number, number][];     // continuous polyline (drops appends during INS)
+  insTrack: [number, number][];     // current dropout segment
+  // attitude / telemetry
+  roll: number; pitch: number; yaw: number;
+  thr: number; vbat: number; armed: boolean;
+  // sensors
+  gyroX: number; gyroY: number; gyroZ: number;
+  accelX: number; accelY: number; accelZ: number;
+  baroAlt: number; baroVs: number; baroP: number; baroT: number;
+  batI: number; batUsed: number;
+  // Leaflet refs (mutable, initialized lazily)
+  marker: any;
+  gpsLine: any;
+  insLine: any;
+}
 
 interface State {
   lang: Lang;
@@ -37,6 +74,8 @@ interface State {
   calMaxCaptures: Record<number, number>;
   filter: LogFilter;
   search: string;
+  vehicles: Vehicle[];
+  activeVehicleId: string;
 }
 
 interface LogEntry {
@@ -91,6 +130,18 @@ const dicts: Record<Lang, Record<string, string>> = {
     "tab.calibration": "校準",
     "tab.log": "紀錄",
     "tab.settings": "設定",
+
+    "fleet.key": "機隊",
+    "fleet.summary": "{0} / {1} 機已連線",
+    "map.legend.gps": "GPS 軌跡",
+    "map.legend.ins": "INS 慣性推算",
+    "map.legend.ring": "距離圈",
+    "log.tag.ins": "INS",
+    "log.msg.gps_lost": "{0} GPS 信號中斷 · 切換為慣性推算",
+    "log.msg.gps_resume": "{0} GPS 重新取得 · 慣性推算解除",
+    "log.msg.fleet_connect": "機隊連線 · {0} 機在線",
+    "log.msg.fleet_disconnect": "機隊全部離線",
+    "log.msg.veh_select": "切換主控載具 · {0}",
 
     "plate.class": "地形圖 · 04",
     "plate.foot.bearing": "方位",
@@ -335,6 +386,18 @@ const dicts: Record<Lang, Record<string, string>> = {
     "tab.log": "LOG",
     "tab.settings": "SETTINGS",
 
+    "fleet.key": "FLEET",
+    "fleet.summary": "{0} OF {1} ONLINE",
+    "map.legend.gps": "GPS TRACK",
+    "map.legend.ins": "INS DEAD-RECKON",
+    "map.legend.ring": "RANGE RINGS",
+    "log.tag.ins": "INS",
+    "log.msg.gps_lost": "{0} GPS lost · falling back to dead-reckoning",
+    "log.msg.gps_resume": "{0} GPS reacquired · INS released",
+    "log.msg.fleet_connect": "Fleet connected · {0} online",
+    "log.msg.fleet_disconnect": "Fleet disconnected",
+    "log.msg.veh_select": "Active vehicle · {0}",
+
     "plate.class": "TERRAIN PLATE · 04",
     "plate.foot.bearing": "BEARING",
     "plate.foot.range": "RANGE",
@@ -541,6 +604,46 @@ const dicts: Record<Lang, Record<string, string>> = {
 
 const STORAGE_KEY = "airyn.state.v1";
 
+function makeVehicle(
+  id: string,
+  callsign: string,
+  color: VehicleColor,
+  lat: number,
+  lon: number,
+  heading: number,
+): Vehicle {
+  return {
+    id, callsign, color,
+    flight: false,
+    lat, lon,
+    altitude: 0,
+    speed: 8,            // m/s default cruise once connected
+    heading,
+    gpsActive: false,
+    gpsSats: 0,
+    gpsHdop: 99,
+    insActive: false,
+    gpsTrack: [],
+    insTrack: [],
+    roll: 0, pitch: 0, yaw: heading,
+    thr: 0, vbat: 0, armed: false,
+    gyroX: 0, gyroY: 0, gyroZ: 0,
+    accelX: 0, accelY: 0, accelZ: 1,
+    baroAlt: 0, baroVs: 0, baroP: 1013.2, baroT: 24.5,
+    batI: 0, batUsed: 0,
+    marker: null, gpsLine: null, insLine: null,
+  };
+}
+
+// Hsinchu testbench area (24.787 N, 121.011 E) — three demo vehicles
+function makeFleet(): Vehicle[] {
+  return [
+    makeVehicle("v1", "AIRYN-01", "ochre", 24.78670, 121.00890, 45),
+    makeVehicle("v2", "AIRYN-02", "ice",   24.79100, 121.01620, 270),
+    makeVehicle("v3", "AIRYN-03", "ok",    24.78320, 121.00500, 135),
+  ];
+}
+
 const initialState: State = {
   lang: "zh",
   view: "map",
@@ -555,10 +658,16 @@ const initialState: State = {
   calMaxCaptures: { 1: 6, 2: 1, 3: 1, 4: 1 },
   filter: "all",
   search: "",
+  vehicles: makeFleet(),
+  activeVehicleId: "v1",
 };
 
 function loadState(): State {
-  const s = { ...initialState, calCaptured: { ...initialState.calCaptured } };
+  const s: State = {
+    ...initialState,
+    calCaptured: { ...initialState.calCaptured },
+    vehicles: makeFleet(),
+  };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return s;
@@ -566,6 +675,9 @@ function loadState(): State {
     if (stored.lang === "zh" || stored.lang === "en") s.lang = stored.lang;
     if (stored.transport === "serial" || stored.transport === "udp" || stored.transport === "mission") {
       s.transport = stored.transport;
+    }
+    if (typeof stored.activeVehicleId === "string" && s.vehicles.some((v) => v.id === stored.activeVehicleId)) {
+      s.activeVehicleId = stored.activeVehicleId;
     }
   } catch {
     /* ignore */
@@ -575,11 +687,16 @@ function loadState(): State {
 
 const state = loadState();
 
+function activeVehicle(): Vehicle {
+  return state.vehicles.find((v) => v.id === state.activeVehicleId) ?? state.vehicles[0]!;
+}
+
 function persist(): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       lang: state.lang,
       transport: state.transport,
+      activeVehicleId: state.activeVehicleId,
     }));
   } catch {
     /* ignore */
@@ -632,6 +749,10 @@ function setView(name: string): void {
   $$<HTMLElement>(".view[data-view]").forEach((view) => {
     view.hidden = view.dataset["view"] !== name;
   });
+  // Leaflet must recompute its container size when it becomes visible
+  if (name === "map" && leafletMap) {
+    requestAnimationFrame(() => leafletMap.invalidateSize());
+  }
 }
 
 // ---------- 6. Camera switcher ----------
@@ -665,11 +786,15 @@ function toggleIROpt(): void {
   if (main) main.classList.toggle("is-ir", state.ir);
 }
 
-// ---------- 7. Demo simulator ----------
+// ---------- 7. Demo simulator (multi-vehicle, Leaflet) ----------
+
+const SIM_DT = 0.1; // 10 Hz
 
 let simTickHandle: ReturnType<typeof setInterval> | null = null;
 let simTime = 0;
-let gpsSats = 0;
+
+let leafletMap: any = null;
+let rangeRingLayers: any[] = [];
 
 function jitter(base: number, span: number): number {
   return base + (Math.random() - 0.5) * span * 2;
@@ -680,79 +805,278 @@ function fmtSigned(n: number, decimals: number, width: number): string {
   return s + n.toFixed(decimals).padStart(width, " ");
 }
 
+function pad3(n: number): string {
+  const v = Math.floor(((n % 360) + 360) % 360);
+  return v.toString().padStart(3, "0");
+}
+
 function setText(sel: string, text: string): void {
   const el = $(sel);
   if (el) el.textContent = text;
 }
 
-function tickSim(): void {
-  simTime += 0.1;
+// ---- Leaflet map setup ----
 
-  const roll = jitter(0, 0.6);
-  const pitch = jitter(0, 0.6);
-  const yaw = (simTime * 4) % 360;
-  const thr = Math.max(0, Math.floor(jitter(0, 6)));
-  const vbat = jitter(22.4, 0.05);
+function initMap(): void {
+  if (leafletMap) return;
+  if (typeof (window as any).L === "undefined") {
+    console.warn("[airyn] Leaflet not loaded — map disabled");
+    return;
+  }
+  const el = document.getElementById("map-main");
+  if (!el) return;
 
-  setText("[data-tel='roll']", fmtSigned(roll, 1, 4));
-  setText("[data-tel='pitch']", fmtSigned(pitch, 1, 4));
-  setText("[data-tel='yaw']", yaw.toFixed(1).padStart(5, "0"));
-  setText("[data-tel='thr']", String(thr));
-  setText("[data-tel='vbat']", vbat.toFixed(1));
+  leafletMap = L.map(el, {
+    zoomControl: true,
+    attributionControl: true,
+    minZoom: 4,
+    maxZoom: 19,
+    zoomSnap: 0.5,
+    zoomDelta: 0.5,
+    fadeAnimation: false,
+    inertia: true,
+  }).setView([24.787, 121.011], 14);
 
-  // gyro / accel
-  setText("[data-sens='gyro-x']", fmtSigned(jitter(0, 0.4), 2, 5));
-  setText("[data-sens='gyro-y']", fmtSigned(jitter(0, 0.4), 2, 5));
-  setText("[data-sens='gyro-z']", fmtSigned(jitter(0, 0.4), 2, 5));
-  setText("[data-sens='accel-x']", fmtSigned(jitter(0, 0.04), 2, 5));
-  setText("[data-sens='accel-y']", fmtSigned(jitter(0, 0.04), 2, 5));
-  setText("[data-sens='accel-z']", fmtSigned(1.0 + jitter(0, 0.02), 2, 5));
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: "&copy; OpenStreetMap &copy; CARTO",
+    subdomains: "abcd",
+    maxZoom: 19,
+  }).addTo(leafletMap);
 
-  // mag heading rotates slowly
-  const heading = (simTime * 2) % 360;
-  setText("[data-sens='mag-hdg']", heading.toFixed(0).padStart(3, "0"));
+  for (const v of state.vehicles) {
+    setupVehicleLayers(v);
+  }
+  setActiveVehicle(state.activeVehicleId, false);
+}
+
+function setupVehicleLayers(v: Vehicle): void {
+  if (!leafletMap || v.marker) return;
+  const icon = L.divIcon({
+    className: `airyn-marker color-${v.color}`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
+    html:
+      '<span class="m-corner m-corner--tl"></span>' +
+      '<span class="m-corner m-corner--tr"></span>' +
+      '<span class="m-corner m-corner--bl"></span>' +
+      '<span class="m-corner m-corner--br"></span>' +
+      '<span class="m-dot"></span>' +
+      `<span class="m-tag">${escapeHtml(v.callsign)}</span>`,
+  });
+  v.marker = L.marker([v.lat, v.lon], { icon, riseOnHover: true }).addTo(leafletMap);
+  v.marker.on("click", () => setActiveVehicle(v.id, true));
+
+  const gpsColor = v.color === "ice" ? "#6c97a3" : v.color === "ok" ? "#7ea081" : "#d18b48";
+  v.gpsLine = L.polyline([], { color: gpsColor, weight: 2, opacity: 0.85, smoothFactor: 1.5 }).addTo(leafletMap);
+  v.insLine = L.polyline([], { color: "#d24a3a", weight: 2, opacity: 0.75, dashArray: "4 5", smoothFactor: 1 }).addTo(leafletMap);
+}
+
+function refreshMarkerClass(v: Vehicle): void {
+  if (!v.marker) return;
+  const el = v.marker.getElement();
+  if (!el) return;
+  el.classList.toggle("is-active", v.id === state.activeVehicleId);
+  el.classList.toggle("is-ins", v.insActive);
+}
+
+function updateRangeRings(): void {
+  if (!leafletMap) return;
+  rangeRingLayers.forEach((r) => leafletMap.removeLayer(r));
+  rangeRingLayers = [];
+  const v = activeVehicle();
+  if (!v) return;
+  const radii = [50, 100, 250, 500];
+  for (const r of radii) {
+    const c = L.circle([v.lat, v.lon], {
+      radius: r,
+      color: "#d18b48",
+      weight: 1,
+      opacity: 0.35,
+      fillOpacity: 0,
+      dashArray: "3 4",
+      interactive: false,
+    });
+    c.addTo(leafletMap);
+    rangeRingLayers.push(c);
+  }
+}
+
+function setActiveVehicle(id: string, recenter: boolean): void {
+  const next = state.vehicles.find((v) => v.id === id);
+  if (!next) return;
+  state.activeVehicleId = id;
+  persist();
+  for (const v of state.vehicles) refreshMarkerClass(v);
+  updateRangeRings();
+  if (recenter && leafletMap) {
+    leafletMap.panTo([next.lat, next.lon], { animate: true, duration: 0.4 });
+  }
+  renderFleetChips();
+  renderActive();
+  pushLog("info", "log.tag.ui", "log.msg.veh_select", next.callsign);
+}
+
+function renderFleetChips(): void {
+  const wrap = $<HTMLElement>("#fleet-chips");
+  const meta = $<HTMLElement>("#fleet-meta");
+  if (!wrap) return;
+  wrap.innerHTML = "";
+  for (const v of state.vehicles) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "fleet-chip" + (v.id === state.activeVehicleId ? " is-active" : "");
+    btn.dataset["vid"] = v.id;
+    btn.dataset["state"] = v.flight ? (v.insActive ? "ins" : "connected") : "offline";
+    btn.innerHTML =
+      '<span class="fleet-chip-dot"></span>' +
+      `<span>${escapeHtml(v.callsign)}</span>` +
+      `<span class="fleet-chip-meta">${v.flight ? (v.insActive ? "INS" : "GPS") : "—"}</span>`;
+    btn.addEventListener("click", () => setActiveVehicle(v.id, true));
+    wrap.appendChild(btn);
+  }
+  if (meta) {
+    const online = state.vehicles.filter((v) => v.flight).length;
+    meta.textContent = t("fleet.summary", online, state.vehicles.length);
+  }
+}
+
+// ---- Per-vehicle motion + GPS dropout ----
+
+function tickVehicle(v: Vehicle): void {
+  if (!v.flight) return;
+
+  // GPS dropout pattern: deterministic per-vehicle phase
+  const phase = (simTime + v.id.charCodeAt(0) * 7) % 30;     // 30 s cycle
+  const gpsActive = !(phase >= 22 && phase < 30);            // 8 s dropout window
+  const wasActive = v.gpsActive;
+  v.gpsActive = gpsActive;
+
+  if (wasActive && !gpsActive) {
+    v.insActive = true;
+    v.insTrack = [];
+    if (v.gpsTrack.length > 0) v.insTrack.push(v.gpsTrack[v.gpsTrack.length - 1]!);
+    pushLog("warn", "log.tag.ins", "log.msg.gps_lost", v.callsign);
+  } else if (!wasActive && gpsActive) {
+    v.insActive = false;
+    pushLog("info", "log.tag.gps", "log.msg.gps_resume", v.callsign);
+  }
+
+  // Move along heading at v.speed (m/s)
+  const headRad = (v.heading * Math.PI) / 180;
+  const dlat = (v.speed * SIM_DT * Math.cos(headRad)) / 111111;
+  const dlon = (v.speed * SIM_DT * Math.sin(headRad)) / (111111 * Math.cos((v.lat * Math.PI) / 180));
+  v.lat += dlat;
+  v.lon += dlon;
+
+  // Slight curve so trajectory isn't a straight line
+  const curveDeg = 4 + (v.id.charCodeAt(2) % 5);
+  v.heading = (((v.heading + SIM_DT * curveDeg) % 360) + 360) % 360;
+
+  v.altitude = 45 + Math.sin(simTime * 0.2) * 2;
+  v.baroAlt = v.altitude + jitter(0, 0.3);
+  v.baroVs = jitter(0, 0.4);
+  v.baroP = jitter(1013.2, 0.4);
+  v.baroT = 24.5 + jitter(0, 0.1);
+
+  if (gpsActive) {
+    v.gpsTrack.push([v.lat, v.lon]);
+    if (v.gpsTrack.length > 800) v.gpsTrack.shift();
+  } else {
+    v.insTrack.push([v.lat, v.lon]);
+    if (v.insTrack.length > 400) v.insTrack.shift();
+  }
+
+  if (gpsActive) {
+    if (v.gpsSats < 14) v.gpsSats = Math.min(14, v.gpsSats + 1);
+    v.gpsHdop = jitter(0.7, 0.05);
+  } else {
+    v.gpsSats = Math.max(0, v.gpsSats - 1);
+    v.gpsHdop = 99;
+  }
+
+  v.roll = jitter(0, 0.6);
+  v.pitch = jitter(0, 0.6);
+  v.yaw = v.heading;
+  v.thr = Math.max(0, 35 + Math.floor(jitter(0, 6)));
+  v.vbat = Math.max(15, 22.4 - simTime * 0.0006);
+  v.armed = true;
+
+  v.gyroX = jitter(0, 0.4); v.gyroY = jitter(0, 0.4); v.gyroZ = jitter(0, 0.4);
+  v.accelX = jitter(0, 0.04); v.accelY = jitter(0, 0.04); v.accelZ = 1.0 + jitter(0, 0.02);
+  v.batI = jitter(8.4, 0.6);
+  v.batUsed += (v.batI * SIM_DT) / 3.6;
+
+  if (v.marker) v.marker.setLatLng([v.lat, v.lon]);
+  if (v.gpsLine) v.gpsLine.setLatLngs(v.gpsTrack);
+  if (v.insLine) v.insLine.setLatLngs(v.insTrack);
+  refreshMarkerClass(v);
+}
+
+function tickFleet(): void {
+  simTime += SIM_DT;
+  for (const v of state.vehicles) tickVehicle(v);
+  updateRangeRings();
+  renderActive();
+  renderFleetChips();
+}
+
+// ---- Render active vehicle into telemetry/sensor DOM ----
+
+function renderActive(): void {
+  const v = activeVehicle();
+  if (!v) return;
+  setText("#plate-coord", `${v.lat.toFixed(5)}° N · ${v.lon.toFixed(5)}° E`);
+
+  if (!v.flight) {
+    resetTelemetryDisplay();
+    return;
+  }
+
+  setText("[data-tel='roll']", fmtSigned(v.roll, 1, 4));
+  setText("[data-tel='pitch']", fmtSigned(v.pitch, 1, 4));
+  setText("[data-tel='yaw']", v.yaw.toFixed(1).padStart(5, "0"));
+  setText("[data-tel='thr']", String(v.thr));
+  setText("[data-tel='vbat']", v.vbat.toFixed(1));
+
+  setText("[data-sens='gyro-x']", fmtSigned(v.gyroX, 2, 5));
+  setText("[data-sens='gyro-y']", fmtSigned(v.gyroY, 2, 5));
+  setText("[data-sens='gyro-z']", fmtSigned(v.gyroZ, 2, 5));
+  setText("[data-sens='accel-x']", fmtSigned(v.accelX, 2, 5));
+  setText("[data-sens='accel-y']", fmtSigned(v.accelY, 2, 5));
+  setText("[data-sens='accel-z']", fmtSigned(v.accelZ, 2, 5));
+
+  setText("[data-sens='mag-hdg']", pad3(v.heading));
   const needle = $<HTMLElement>(".compass-needle");
-  if (needle) needle.style.transform = `translate(-50%, -50%) rotate(${heading}deg)`;
+  if (needle) needle.style.transform = `translate(-50%, -50%) rotate(${v.heading}deg)`;
 
-  // baro
-  setText("[data-sens='baro-alt']", jitter(0, 0.3).toFixed(1));
-  setText("[data-sens='baro-vs']", fmtSigned(jitter(0, 0.2), 1, 3));
-  setText("[data-sens='baro-p']", jitter(1013.2, 0.4).toFixed(1));
-  setText("[data-sens='baro-t']", fmtSigned(24.5 + jitter(0, 0.1), 1, 4));
+  setText("[data-sens='baro-alt']", v.baroAlt.toFixed(1));
+  setText("[data-sens='baro-vs']", fmtSigned(v.baroVs, 1, 3));
+  setText("[data-sens='baro-p']", v.baroP.toFixed(1));
+  setText("[data-sens='baro-t']", fmtSigned(v.baroT, 1, 4));
 
-  // gps progressively fixes
-  if (simTime > 2.5 && gpsSats < 14) gpsSats++;
-  if (gpsSats >= 6) {
-    setText("[data-sens='gps-fix']", t("gps.fix.three_d"));
-    const stateEl = $(".cell--gps .cell-state");
-    if (stateEl) {
-      stateEl.textContent = t("state.fix_3d");
-      stateEl.classList.remove("state--off");
-      stateEl.classList.add("state--ok");
-    }
-    setText("[data-sens='gps-lat']", "24.787" + Math.floor(jitter(0, 1)).toString().slice(-1));
-    setText("[data-sens='gps-lon']", "121.0089");
-    setText("[data-sens='gps-alt']", jitter(45, 0.4).toFixed(0));
-    setText("[data-sens='gps-hdop']", "0." + (60 + Math.floor(jitter(0, 4))).toString().slice(-2));
+  const gpsState = $(".cell--gps .cell-state");
+  if (gpsState) {
+    gpsState.textContent = v.gpsActive ? t("state.fix_3d") : t("state.no_fix");
+    gpsState.classList.toggle("state--ok", v.gpsActive);
+    gpsState.classList.toggle("state--off", !v.gpsActive);
   }
-  setText("[data-sens='gps-sat']", `${gpsSats}/${gpsSats + 4}`);
+  setText("[data-sens='gps-fix']", v.gpsActive ? t("gps.fix.three_d") : t("gps.fix.none"));
+  setText("[data-sens='gps-sat']", `${v.gpsSats}/${v.gpsSats + (v.gpsActive ? 4 : 0)}`);
+  setText("[data-sens='gps-hdop']", v.gpsActive ? v.gpsHdop.toFixed(2) : "--.--");
+  setText("[data-sens='gps-lat']", v.gpsActive ? v.lat.toFixed(6) : "--.------");
+  setText("[data-sens='gps-lon']", v.gpsActive ? v.lon.toFixed(6) : "--.------");
+  setText("[data-sens='gps-alt']", v.gpsActive ? v.altitude.toFixed(0) : "--");
 
-  // battery
-  setText("[data-sens='bat-vbat']", vbat.toFixed(1));
-  setText("[data-sens='bat-i']", jitter(8.4, 0.6).toFixed(1));
-  const used = Math.floor(simTime * 22);
-  setText("[data-sens='bat-used']", String(used));
-  setText("[data-sens='bat-est']", String(Math.max(0, 18 - Math.floor(simTime / 60))));
+  setText("[data-sens='bat-vbat']", v.vbat.toFixed(1));
+  setText("[data-sens='bat-i']", v.batI.toFixed(1));
+  setText("[data-sens='bat-used']", String(Math.floor(v.batUsed)));
+  setText("[data-sens='bat-est']", String(Math.max(0, Math.floor((v.vbat - 18) * 3))));
   const bar = $<HTMLElement>("[data-sens='bat-bar']");
-  if (bar) {
-    const pct = Math.max(0, 100 - simTime / 6);
-    bar.style.width = pct.toFixed(0) + "%";
-  }
+  if (bar) bar.style.width = `${Math.max(0, Math.min(100, ((v.vbat - 18) / (25.2 - 18)) * 100))}%`;
 
-  // RC channels
   setText("[data-sens='rc-ail']", String(1500 + Math.floor(jitter(0, 12))));
   setText("[data-sens='rc-ele']", String(1500 + Math.floor(jitter(0, 12))));
-  setText("[data-sens='rc-thr']", String(1000 + Math.floor(jitter(0, 4))));
+  setText("[data-sens='rc-thr']", String(1000 + Math.floor(v.thr * 5)));
   setText("[data-sens='rc-rud']", String(1500 + Math.floor(jitter(0, 12))));
   setText("[data-sens='rc-rssi']", `${Math.floor(jitter(-58, 2))} dBm`);
   setText("[data-sens='rc-lq']", `${Math.floor(jitter(99, 0.5))} %`);
@@ -764,11 +1088,10 @@ function tickSim(): void {
     rcState.classList.add("state--ok");
   }
 
-  // data link
   setText("[data-sens='data-transport']", state.transport.toUpperCase());
   setText("[data-sens='data-baud']", state.transport === "serial" ? "921600 / 100 Hz" : "— / 100 Hz");
   setText("[data-sens='data-latency']", `${Math.floor(jitter(2, 0.5))} ms`);
-  setText("[data-sens='data-loss']", `0.0 %`);
+  setText("[data-sens='data-loss']", v.gpsActive ? "0.0 %" : "0.4 %");
   setText("[data-sens='data-rxtx']", `${Math.floor(simTime * 100)} / ${Math.floor(simTime * 12)}`);
   const dataState = $<HTMLElement>("[data-sens='data-state']");
   if (dataState) {
@@ -777,23 +1100,29 @@ function tickSim(): void {
     dataState.classList.add("state--ok");
   }
 
-  // plate
-  setText("[data-plate='bearing']", `${heading.toFixed(0).padStart(3, "0")}°`);
-  setText("[data-plate='range']", `${(simTime * 0.3).toFixed(1)} m`);
-  setText("[data-plate='alt']", jitter(0, 0.3).toFixed(1));
-  setText("[data-plate='sat']", `${gpsSats}/${gpsSats + 4}`);
-
-  // reticle pulses red while live
-  const recTag = $(".reticle-tag");
-  if (recTag) recTag.textContent = t("reticle.tag.live");
+  setText("[data-plate='bearing']", `${pad3(v.heading)}°`);
+  setText("[data-plate='range']", `${v.speed.toFixed(1)} m/s`);
+  setText("[data-plate='alt']", v.altitude.toFixed(0));
+  setText("[data-plate='sat']", v.gpsActive ? `${v.gpsSats}/${v.gpsSats + 4}` : "0/0");
 }
 
 function startSim(): void {
   if (simTickHandle != null) return;
   simTime = 0;
-  gpsSats = 0;
-  simTickHandle = setInterval(tickSim, 100);
-  tickSim();
+  for (const v of state.vehicles) {
+    v.flight = true;
+    v.gpsActive = true;
+    v.gpsSats = 8;
+    v.gpsHdop = 0.8;
+    v.gpsTrack = [[v.lat, v.lon]];
+    v.insTrack = [];
+    v.insActive = false;
+    v.batUsed = 0;
+    if (v.gpsLine) v.gpsLine.setLatLngs(v.gpsTrack);
+    if (v.insLine) v.insLine.setLatLngs([]);
+  }
+  simTickHandle = setInterval(tickFleet, SIM_DT * 1000);
+  tickFleet();
 }
 
 function stopSim(): void {
@@ -802,8 +1131,19 @@ function stopSim(): void {
     simTickHandle = null;
   }
   simTime = 0;
-  gpsSats = 0;
+  for (const v of state.vehicles) {
+    v.flight = false;
+    v.gpsActive = false;
+    v.insActive = false;
+    v.gpsSats = 0;
+    v.gpsTrack = [];
+    v.insTrack = [];
+    if (v.gpsLine) v.gpsLine.setLatLngs([]);
+    if (v.insLine) v.insLine.setLatLngs([]);
+    refreshMarkerClass(v);
+  }
   resetTelemetryDisplay();
+  renderFleetChips();
 }
 
 function resetTelemetryDisplay(): void {
@@ -1287,12 +1627,15 @@ function init(): void {
   setLang(state.lang); // applies lang toggle active class
   setTransport(state.transport);
   setCam(state.cam);
+  initMap();
+  renderFleetChips();
   setView(state.view);
   setCalStep(state.calStep);
   renderWaypointTable();
   renderLog();
   refreshLedger();
   resetTelemetryDisplay();
+  renderActive();
 
   tickClock();
   setInterval(tickClock, 1000);

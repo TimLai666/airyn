@@ -55,7 +55,7 @@
 
   color: var(--text-pri);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 450;
   line-height: 1.4;
   font-variant-ligatures: none;
@@ -158,7 +158,7 @@ button { cursor: pointer; }
   z-index: 3;
   height: 100vh;
   display: grid;
-  grid-template-rows: auto auto auto 1fr auto;
+  grid-template-rows: auto auto auto auto 1fr auto;
   padding: 18px 26px 14px;
   gap: 14px;
 }
@@ -184,7 +184,7 @@ button { cursor: pointer; }
 .brand-mark {
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: 30px;
+  font-size: 32px;
   letter-spacing: 0.18em;
   color: var(--text-pri);
 }
@@ -199,7 +199,7 @@ button { cursor: pointer; }
 .brand-sub {
   font-family: var(--font-display);
   font-weight: 500;
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.32em;
   color: var(--text-sec);
 }
@@ -209,7 +209,7 @@ button { cursor: pointer; }
   align-items: baseline;
   gap: 12px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.16em;
   color: var(--text-sec);
   text-transform: uppercase;
@@ -242,7 +242,7 @@ button { cursor: pointer; }
 
 .rail-key {
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.32em;
   color: var(--text-mute);
   text-transform: uppercase;
@@ -251,7 +251,7 @@ button { cursor: pointer; }
 .rail-val {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 19px;
+  font-size: 20px;
   letter-spacing: 0.06em;
   color: var(--text-pri);
   display: inline-flex;
@@ -271,7 +271,7 @@ button { cursor: pointer; }
 
 .rail-foot {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.12em;
   color: var(--text-mute);
   text-transform: uppercase;
@@ -291,7 +291,7 @@ button { cursor: pointer; }
   color: var(--text-pri);
   padding: 10px 14px;
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.24em;
   font-weight: 600;
   display: flex;
@@ -308,7 +308,7 @@ button { cursor: pointer; }
 
 .op-btn-meta {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.18em;
   color: var(--text-mute);
   font-weight: 400;
@@ -345,7 +345,7 @@ button { cursor: pointer; }
   padding: 14px 20px;
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.28em;
   color: var(--text-mute);
   border-bottom: 2px solid transparent;
@@ -358,7 +358,7 @@ button { cursor: pointer; }
 
 .tab-num {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.18em;
   color: var(--accent-ochre-soft);
   font-weight: 400;
@@ -483,7 +483,7 @@ button { cursor: pointer; }
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.24em;
   color: var(--text-sec);
   text-transform: uppercase;
@@ -496,7 +496,7 @@ button { cursor: pointer; }
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.22em;
   color: var(--text-sec);
   text-transform: uppercase;
@@ -519,7 +519,7 @@ button { cursor: pointer; }
   transform: translateX(-50%);
   white-space: nowrap;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.28em;
   color: var(--accent-ir);
   text-transform: uppercase;
@@ -579,7 +579,7 @@ button { cursor: pointer; }
   border-bottom: 1px solid var(--rule);
   padding-bottom: 9px;
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.32em;
   text-transform: uppercase;
 }
@@ -600,14 +600,14 @@ button { cursor: pointer; }
 
 .readout-list dt {
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.28em;
   color: var(--text-mute);
 }
 
 .readout-list dd {
   font-family: var(--font-mono);
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 500;
   color: var(--text-pri);
   letter-spacing: 0.04em;
@@ -616,7 +616,7 @@ button { cursor: pointer; }
 .readout-list .num { font-feature-settings: "tnum" 1; }
 .readout-list .unit {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.18em;
   color: var(--text-mute);
   margin-left: 6px;
@@ -636,7 +636,7 @@ button { cursor: pointer; }
   padding: 10px 0;
   border-bottom: 1px solid var(--rule);
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.06em;
 }
 .queue-list li:last-child { border-bottom: none; }
@@ -645,7 +645,7 @@ button { cursor: pointer; }
 .queue-name { color: var(--text-pri); }
 .queue-state {
   color: var(--text-mute);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.24em;
 }
 
@@ -687,7 +687,7 @@ button { cursor: pointer; }
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.24em;
   color: var(--text-sec);
   text-transform: uppercase;
@@ -712,7 +712,7 @@ button { cursor: pointer; }
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.22em;
   color: var(--text-sec);
   text-transform: uppercase;
@@ -767,7 +767,7 @@ button { cursor: pointer; }
 }
 .cam--thumb .cam-class {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.24em;
   color: var(--text-pri);
 }
@@ -775,7 +775,7 @@ button { cursor: pointer; }
 
 .cam-state {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.28em;
   color: var(--text-mute);
 }
@@ -802,7 +802,7 @@ button { cursor: pointer; }
 
 .ctl-key {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.32em;
   color: var(--text-mute);
   text-transform: uppercase;
@@ -810,7 +810,7 @@ button { cursor: pointer; }
 
 .ctl-val {
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-pri);
   letter-spacing: 0.04em;
 }
@@ -869,7 +869,7 @@ button { cursor: pointer; }
 
 .cell-class {
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.32em;
   color: var(--text-pri);
   text-transform: uppercase;
@@ -878,7 +878,7 @@ button { cursor: pointer; }
 
 .cell-state {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.24em;
 }
 .state--ok { color: var(--accent-ok); }
@@ -903,7 +903,7 @@ button { cursor: pointer; }
 
 .axis-list dt {
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.28em;
   color: var(--text-mute);
 }
@@ -918,7 +918,7 @@ button { cursor: pointer; }
 .axis-list .num { font-feature-settings: "tnum" 1; }
 .axis-list .unit {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.18em;
   color: var(--text-mute);
   margin-left: 5px;
@@ -966,7 +966,7 @@ button { cursor: pointer; }
 .compass-tick {
   position: absolute;
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.18em;
   color: var(--text-sec);
 }
@@ -1018,13 +1018,13 @@ button { cursor: pointer; }
 }
 .channel-grid dt {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.28em;
   color: var(--text-mute);
 }
 .channel-grid dd {
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: 16px;
   color: var(--text-pri);
 }
 
@@ -1032,7 +1032,7 @@ button { cursor: pointer; }
   display: flex;
   gap: 28px;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.16em;
   color: var(--text-sec);
   text-transform: uppercase;
@@ -1070,7 +1070,7 @@ button { cursor: pointer; }
   display: grid;
   place-items: center;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.12em;
   color: var(--text-pri);
   transform: translate(-50%, -50%);
@@ -1092,12 +1092,12 @@ button { cursor: pointer; }
   width: 100%;
   border-collapse: collapse;
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.06em;
 }
 .wp-table th {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.28em;
   text-align: left;
   color: var(--text-mute);
@@ -1154,20 +1154,20 @@ button { cursor: pointer; }
 
 .cal-num {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.2em;
   color: var(--accent-ochre);
 }
 .cal-label {
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.22em;
   color: var(--text-pri);
   font-weight: 600;
 }
 .cal-state {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.24em;
 }
 
@@ -1185,7 +1185,7 @@ button { cursor: pointer; }
 
 .cal-prompt-class {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.28em;
   color: var(--accent-ochre);
   text-transform: uppercase;
@@ -1194,7 +1194,7 @@ button { cursor: pointer; }
 .cal-prompt-title {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 26px;
+  font-size: 28px;
   letter-spacing: 0.04em;
   color: var(--text-pri);
 }
@@ -1258,7 +1258,7 @@ button { cursor: pointer; }
   position: absolute;
   bottom: 18px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.22em;
   color: var(--text-mute);
   text-transform: uppercase;
@@ -1276,7 +1276,7 @@ button { cursor: pointer; }
 
 .cal-progress-key {
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.32em;
   color: var(--text-mute);
 }
@@ -1295,7 +1295,7 @@ button { cursor: pointer; }
 
 .cal-progress-val {
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.22em;
   color: var(--text-pri);
 }
@@ -1325,7 +1325,7 @@ button { cursor: pointer; }
   border: 1px solid var(--rule-strong);
   padding: 8px 14px;
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.28em;
   color: var(--text-sec);
   font-weight: 600;
@@ -1348,21 +1348,21 @@ button { cursor: pointer; }
 }
 .search-key {
   font-family: var(--font-display);
-  font-size: 10px;
+  font-size: 14px;
   letter-spacing: 0.32em;
   color: var(--text-mute);
 }
 .search-input {
   flex: 1;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-pri);
   letter-spacing: 0.04em;
 }
 .search-input::placeholder { color: var(--text-mute); }
 .search-meta {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   color: var(--text-mute);
   letter-spacing: 0.18em;
 }
@@ -1384,7 +1384,7 @@ button { cursor: pointer; }
   align-items: baseline;
   padding: 7px 0;
   font-family: var(--font-mono);
-  font-size: 13px;
+  font-size: 14px;
   letter-spacing: 0.04em;
   border-bottom: 1px dashed var(--rule);
 }
@@ -1393,7 +1393,7 @@ button { cursor: pointer; }
 .log-ts { color: var(--text-mute); letter-spacing: 0.12em; }
 .log-tag {
   color: var(--accent-ochre);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.24em;
   text-transform: uppercase;
 }
@@ -1438,7 +1438,7 @@ button { cursor: pointer; }
   justify-content: center;
   padding: 10px 14px;
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.24em;
   color: var(--text-sec);
   cursor: pointer;
@@ -1467,7 +1467,7 @@ button { cursor: pointer; }
 
 .field-key {
   font-family: var(--font-display);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.32em;
   color: var(--text-mute);
 }
@@ -1512,7 +1512,7 @@ select.field-input {
   padding-top: 11px;
   border-top: 1px solid var(--rule);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 14px;
   letter-spacing: 0.22em;
   color: var(--text-mute);
   text-transform: uppercase;
@@ -1532,7 +1532,7 @@ select.field-input {
   align-items: baseline;
   gap: 4px;
   font-family: var(--font-display);
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 0.18em;
   font-weight: 600;
   margin-right: 4px;
@@ -1647,6 +1647,270 @@ html[lang="zh"] .cal-prompt-title { letter-spacing: 0; }
 .tab-num,
 .cal-num {
   font-feature-settings: "tnum" 1, "ss01" 1;
+}
+
+/* ============================================================
+   Fleet selector strip
+   ============================================================ */
+
+.fleet {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 1px solid var(--rule);
+  padding: 10px 0;
+  flex-wrap: wrap;
+}
+
+.fleet-key {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.32em;
+  color: var(--text-mute);
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.fleet-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.fleet-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: transparent;
+  border: 1px solid var(--rule-strong);
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  color: var(--text-sec);
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 160ms ease, color 160ms ease, background 160ms ease;
+}
+
+.fleet-chip:hover { border-color: var(--accent-ochre-soft); color: var(--text-pri); }
+
+.fleet-chip.is-active {
+  border-color: var(--accent-ochre);
+  color: var(--accent-ochre);
+  background: rgba(209, 139, 72, 0.08);
+}
+
+.fleet-chip-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--text-mute);
+  box-shadow: 0 0 6px transparent;
+}
+
+.fleet-chip[data-state="connected"] .fleet-chip-dot {
+  background: var(--accent-ok);
+  box-shadow: 0 0 8px var(--accent-ok);
+}
+
+.fleet-chip[data-state="ins"] .fleet-chip-dot {
+  background: var(--accent-ir);
+  box-shadow: 0 0 8px var(--accent-ir);
+  animation: rec-blink 1.6s ease-in-out infinite;
+}
+
+.fleet-chip-meta {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.06em;
+  color: var(--text-mute);
+}
+
+.fleet-meta {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.12em;
+  color: var(--text-mute);
+}
+
+/* ============================================================
+   Map canvas (Leaflet)
+   ============================================================ */
+
+.plate--map .map-canvas,
+.plate--mission .map-canvas {
+  position: absolute;
+  inset: 28px;
+  background: #0a0d0e;
+  z-index: 1;
+}
+
+/* Map under the cinematic chrome */
+.plate--map .plate-head,
+.plate--map .plate-foot,
+.plate--mission .plate-head,
+.plate--mission .plate-foot {
+  z-index: 4;
+  pointer-events: none;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.7);
+}
+
+.plate--map .plate-frame,
+.plate--mission .plate-frame {
+  z-index: 5;
+}
+
+/* Leaflet sits inside dark theme — kill defaults that clash */
+.leaflet-container {
+  background: #0a0d0e !important;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  outline: none;
+}
+
+.leaflet-control-attribution {
+  background: rgba(20, 24, 26, 0.8) !important;
+  color: var(--text-mute) !important;
+  font-family: var(--font-mono);
+  font-size: 14px !important;
+  letter-spacing: 0.04em;
+  border: 1px solid var(--rule);
+  border-bottom: none;
+  border-right: none;
+  padding: 4px 8px !important;
+}
+
+.leaflet-control-attribution a {
+  color: var(--accent-ochre-soft) !important;
+}
+
+.leaflet-bar {
+  border: 1px solid var(--rule-strong) !important;
+  border-radius: 0 !important;
+  background: var(--bg-surface) !important;
+  box-shadow: none !important;
+}
+
+.leaflet-bar a {
+  background: var(--bg-surface) !important;
+  color: var(--text-pri) !important;
+  border-bottom: 1px solid var(--rule) !important;
+  border-radius: 0 !important;
+  font-family: var(--font-display);
+  font-weight: 600;
+}
+
+.leaflet-bar a:hover {
+  background: rgba(209, 139, 72, 0.10) !important;
+  color: var(--accent-ochre) !important;
+}
+
+.leaflet-bar a:last-child { border-bottom: none !important; }
+
+/* ============================================================
+   Custom drone marker (divIcon)
+   ============================================================ */
+
+.airyn-marker {
+  position: relative;
+  pointer-events: auto;
+}
+
+.airyn-marker .m-corner {
+  position: absolute;
+  width: 10px; height: 10px;
+  border: 1px solid var(--accent-ochre);
+}
+.airyn-marker .m-corner--tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+.airyn-marker .m-corner--tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+.airyn-marker .m-corner--bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+.airyn-marker .m-corner--br { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+.airyn-marker .m-dot {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 8px; height: 8px;
+  background: var(--accent-ochre);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 10px rgba(209, 139, 72, 0.55);
+}
+
+.airyn-marker .m-tag {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.18em;
+  color: var(--text-pri);
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(0, 0, 0, 0.85);
+}
+
+.airyn-marker.is-active .m-corner { border-color: var(--accent-ir); width: 14px; height: 14px; }
+.airyn-marker.is-active .m-dot {
+  background: var(--accent-ir);
+  box-shadow: 0 0 0 2px rgba(210, 74, 58, 0.18), 0 0 16px rgba(210, 74, 58, 0.85);
+  animation: pulse 2.4s ease-in-out infinite;
+}
+.airyn-marker.is-active .m-tag { color: var(--accent-ir); }
+
+.airyn-marker.is-ins .m-dot {
+  background: var(--accent-ir);
+  animation: rec-blink 1.6s ease-in-out infinite;
+}
+.airyn-marker.is-ins .m-corner { border-color: var(--accent-ir); border-style: dashed; }
+
+.airyn-marker.color-ice .m-corner { border-color: var(--accent-ice); }
+.airyn-marker.color-ice .m-dot { background: var(--accent-ice); box-shadow: 0 0 10px rgba(108, 151, 163, 0.55); }
+.airyn-marker.color-ice .m-tag { color: var(--accent-ice); }
+
+.airyn-marker.color-ok .m-corner { border-color: var(--accent-ok); }
+.airyn-marker.color-ok .m-dot { background: var(--accent-ok); box-shadow: 0 0 10px rgba(126, 160, 129, 0.5); }
+.airyn-marker.color-ok .m-tag { color: var(--accent-ok); }
+
+/* ============================================================
+   Map legend (bottom-left overlay)
+   ============================================================ */
+
+.map-legend {
+  position: absolute;
+  bottom: 56px;
+  left: 36px;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 12px;
+  background: rgba(20, 24, 26, 0.78);
+  border: 1px solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  letter-spacing: 0.16em;
+  color: var(--text-sec);
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.legend-row { display: inline-flex; align-items: center; gap: 8px; }
+
+.legend-swatch {
+  width: 16px;
+  height: 2px;
+  background: var(--accent-ochre);
+}
+.legend-swatch--gps { background: var(--accent-ochre); }
+.legend-swatch--ins {
+  background: linear-gradient(90deg, var(--accent-ir) 0 4px, transparent 4px 8px, var(--accent-ir) 8px 12px, transparent 12px 16px);
+}
+.legend-swatch--ring {
+  background: transparent;
+  border: 1px dashed var(--accent-ochre);
+  height: 0;
 }
 
 /* ============================================================
