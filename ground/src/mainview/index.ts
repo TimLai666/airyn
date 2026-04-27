@@ -313,10 +313,10 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.map_origin": "地形圖原點 · 24°47′12″N 121°00′32″E",
     "log.msg.no_fc": "未偵測到飛控 · 待機",
     "log.msg.ready": "操作員介面就緒 · 等待連線",
-    "log.msg.connected": "飛控已連線 · 遙測 100 Hz · {0}",
-    "log.msg.connected_via_mission": "任務電腦握手成功 · {0} → 中繼飛控遙測",
-    "log.msg.disconnected": "飛控連線中斷",
-    "log.msg.gps_fix": "GPS 取得 3D 定位 · {0} 顆衛星",
+    "log.msg.connected": "{0} 飛控已連線 · 遙測 100 Hz · {1}",
+    "log.msg.connected_via_mission": "{0} 任務電腦握手成功 · {1} → 中繼飛控遙測",
+    "log.msg.disconnected": "{0} 飛控連線中斷",
+    "log.msg.gps_fix": "{0} GPS 取得 3D 定位 · {1} 顆衛星",
     "log.msg.cal_capture": "已擷取校準姿勢 {0} / 步驟 {1}",
     "log.msg.plan_upload": "已上傳計畫 · {0} 航點",
     "log.msg.plan_clear": "已清空計畫",
@@ -567,10 +567,10 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.map_origin": "Terrain plate origin · 24°47′12″N 121°00′32″E",
     "log.msg.no_fc": "No flight controller detected · idle",
     "log.msg.ready": "Operator view ready · awaiting connect",
-    "log.msg.connected": "Flight controller connected · telemetry 100 Hz · {0}",
-    "log.msg.connected_via_mission": "Mission computer handshake OK · {0} → relaying flight controller telemetry",
-    "log.msg.disconnected": "Flight controller disconnected",
-    "log.msg.gps_fix": "GPS acquired 3D fix · {0} satellites",
+    "log.msg.connected": "{0} flight controller connected · telemetry 100 Hz · {1}",
+    "log.msg.connected_via_mission": "{0} mission computer handshake OK · {1} → relaying flight controller telemetry",
+    "log.msg.disconnected": "{0} flight controller disconnected",
+    "log.msg.gps_fix": "{0} GPS acquired 3D fix · {1} satellites",
     "log.msg.cal_capture": "Captured calibration pose {0} for step {1}",
     "log.msg.plan_upload": "Plan uploaded · {0} waypoints",
     "log.msg.plan_clear": "Plan cleared",
@@ -935,6 +935,7 @@ function setActiveVehicle(id: string, recenter: boolean): void {
   renderLinkPath();
   renderActiveLinkRail();
   renderConnectButton();
+  refreshTransportStatusFromActive();
   pushLog("info", "log.tag.ui", "log.msg.veh_select", next.callsign);
 }
 
@@ -1010,7 +1011,7 @@ function connectBridge(): void {
   });
 }
 
-function sendBridge(cmd: { type: "connect" | "disconnect" }): void {
+function sendBridge(cmd: { type: "connect" | "disconnect"; id: string }): void {
   if (!bridgeSocket || bridgeSocket.readyState !== 1 /* OPEN */) return;
   try { bridgeSocket.send(JSON.stringify(cmd)); } catch { /* */ }
 }
@@ -1157,9 +1158,13 @@ function applyFleetFrame(frame: ServerFleetFrame): void {
   renderActive();
   renderFleetChips();
 
+  // The active vehicle's flight state may have flipped this frame even if
+  // the fleet aggregate didn't, so refresh the rail unconditionally —
+  // it's cheap.
+  renderActiveLinkRail();
+  renderConnectButton();
+  refreshTransportStatusFromActive();
   if (fleetWasFlying !== state.flight) {
-    renderActiveLinkRail();
-    renderConnectButton();
     refreshLedger();
   }
 }
@@ -1254,18 +1259,19 @@ function renderActive(): void {
   setText("[data-plate='sat']", v.gpsActive ? `${v.gpsSats}/${v.gpsSats + 4}` : "0/0");
 }
 
-// startSim / stopSim are now thin wrappers around the bridge.
-// Authoritative simulator state lives in ground/src/bun/sim.ts.
+// Connection control is per-vehicle. The CONNECT button drives the
+// currently-active vehicle only; switching the active vehicle does NOT
+// change anyone's connection state. Authoritative connection state is
+// owned by ground/src/bun/sim.ts.
 
-function startSim(): void {
-  sendBridge({ type: "connect" });
+function setVehicleConnected(id: string, on: boolean): void {
+  sendBridge({ type: on ? "connect" : "disconnect", id });
 }
 
-function stopSim(): void {
-  sendBridge({ type: "disconnect" });
-  // The server will send a final "fleet" frame with flight=false; that
-  // resets the displays. We don't local-clear here because that would
-  // race with in-flight frames from the bridge.
+function setActiveVehicleConnected(on: boolean): void {
+  const v = activeVehicle();
+  if (!v) return;
+  setVehicleConnected(v.id, on);
 }
 
 function resetTelemetryDisplay(): void {
@@ -1381,40 +1387,14 @@ function renderActiveLinkRail(): void {
   }
 }
 
-function setFlightConnected(on: boolean): void {
-  // Drive the whole demo fleet from this single toggle for now.
-  // In a real client each vehicle's link is opened/closed independently
-  // by ground/src/bun once the IPC bridge lands.
-  state.flight = on;
-
-  if (on) {
-    startSim();
-    for (const veh of state.vehicles) {
-      const meta = `${veh.link.transport.toUpperCase()} · ${veh.link.endpoint}`;
-      if (veh.link.mode === "via-mission") {
-        pushLog("info", "log.tag.link", "log.msg.connected_via_mission", meta);
-      } else {
-        pushLog("info", "log.tag.link", "log.msg.connected", meta);
-      }
-    }
-    setTimeout(() => pushLog("info", "log.tag.gps", "log.msg.gps_fix", 14), 3000);
-  } else {
-    stopSim();
-    pushLog("warn", "log.tag.link", "log.msg.disconnected");
-  }
-
-  renderActiveLinkRail();
-  renderLinkPath();
-  renderConnectButton();
-
+function refreshTransportStatusFromActive(): void {
   const transportStatus = $<HTMLElement>("[data-status='transport']");
-  if (transportStatus) {
-    transportStatus.textContent = on ? t("state.connected") : t("state.disconnected");
-    transportStatus.classList.toggle("state--ok", on);
-    transportStatus.classList.toggle("state--off", !on);
-  }
-
-  refreshLedger();
+  if (!transportStatus) return;
+  const v = activeVehicle();
+  const on = v?.flight ?? false;
+  transportStatus.textContent = on ? t("state.connected") : t("state.disconnected");
+  transportStatus.classList.toggle("state--ok", on);
+  transportStatus.classList.toggle("state--off", !on);
 }
 
 function refreshLedger(): void {
@@ -1685,16 +1665,16 @@ function bind(): void {
   $<HTMLElement>("[data-action='rec']")?.addEventListener("click", toggleRec);
   $<HTMLElement>("[data-action='ir-opt']")?.addEventListener("click", toggleIROpt);
 
-  // Connect button (rail) — drives the whole fleet for now
+  // Connect button (rail) — toggles the *active* vehicle's link only.
   $<HTMLElement>("[data-action='connect-flight']")?.addEventListener("click", () => {
-    setFlightConnected(!state.flight);
+    setActiveVehicleConnected(!(activeVehicle()?.flight ?? false));
   });
-  // Settings connect / disconnect
+  // Settings connect / disconnect — same scope (active vehicle).
   $<HTMLElement>("[data-action='settings-connect']")?.addEventListener("click", () => {
-    setFlightConnected(true);
+    setActiveVehicleConnected(true);
   });
   $<HTMLElement>("[data-action='settings-disconnect']")?.addEventListener("click", () => {
-    setFlightConnected(false);
+    setActiveVehicleConnected(false);
   });
 
   // Log filter chips

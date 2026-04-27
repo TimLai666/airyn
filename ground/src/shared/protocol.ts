@@ -72,9 +72,9 @@ export type ServerMessage =
       msgArgs?: (string | number)[];
     };
 
-/** Client → server. */
+/** Client → server. Connection is per-vehicle. */
 export type ClientMessage =
-  | { type: "connect" }
-  | { type: "disconnect" };
+  | { type: "connect"; id: string }
+  | { type: "disconnect"; id: string };
 
 export const BRIDGE_PORT = 7711;

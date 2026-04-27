@@ -208,7 +208,7 @@ function tickFleet(): void {
   });
 }
 
-// ---- Public API ----
+// ---- Public API: per-vehicle connect / disconnect ----
 
 export function getFleetConfig(): VehicleConfig[] {
   return vehicles.map((v) => ({
@@ -225,49 +225,62 @@ export function subscribe(sub: Subscriber): () => void {
   return () => subscribers.delete(sub);
 }
 
-export function startSim(): void {
+function ensureTickRunning(): void {
   if (tickHandle != null) return;
-
-  for (const v of vehicles) {
-    v.flight = true;
-    v.gpsActive = true;
-    v.gpsSats = 8;
-    v.gpsHdop = 0.8;
-    v.insActive = false;
-    v.batUsed = 0;
-  }
-
-  for (const v of vehicles) {
-    const meta = `${v.link.transport.toUpperCase()} · ${v.link.endpoint}`;
-    if (v.link.mode === "via-mission") {
-      pushLog("info", "log.tag.link", "log.msg.connected_via_mission", meta);
-    } else {
-      pushLog("info", "log.tag.link", "log.msg.connected", meta);
-    }
-  }
-  setTimeout(() => pushLog("info", "log.tag.gps", "log.msg.gps_fix", 14), 3000);
-
   tickHandle = setInterval(tickFleet, SIM_DT * 1000);
+  // Emit one immediate frame so a freshly-connected client sees the new
+  // vehicle's state without waiting for the first tick.
   tickFleet();
 }
 
-export function stopSim(): void {
-  if (tickHandle != null) {
-    clearInterval(tickHandle);
-    tickHandle = null;
-  }
+function maybeStopTick(): void {
+  if (tickHandle == null) return;
+  if (vehicles.some((v) => v.flight)) return;
+  clearInterval(tickHandle);
+  tickHandle = null;
   simTime = 0;
-  for (const v of vehicles) {
-    v.flight = false;
-    v.gpsActive = false;
-    v.insActive = false;
-    v.gpsSats = 0;
-  }
-  pushLog("warn", "log.tag.link", "log.msg.disconnected");
+}
+
+function emitSnapshot(): void {
   emit({
     type: "fleet",
     t: simTime,
-    flight: false,
+    flight: vehicles.some((v) => v.flight),
     vehicles: vehicles.map(toFrame),
   });
+}
+
+export function startVehicle(id: string): void {
+  const v = vehicles.find((x) => x.id === id);
+  if (!v || v.flight) return;
+  v.flight = true;
+  v.gpsActive = true;
+  v.gpsSats = 8;
+  v.gpsHdop = 0.8;
+  v.insActive = false;
+  v.batUsed = 0;
+
+  if (v.link.mode === "via-mission") {
+    pushLog("info", "log.tag.link", "log.msg.connected_via_mission", v.callsign, `${v.link.transport.toUpperCase()} · ${v.link.endpoint}`);
+  } else {
+    pushLog("info", "log.tag.link", "log.msg.connected", v.callsign, `${v.link.transport.toUpperCase()} · ${v.link.endpoint}`);
+  }
+  setTimeout(() => {
+    if (v.flight) pushLog("info", "log.tag.gps", "log.msg.gps_fix", v.callsign, 14);
+  }, 3000);
+
+  ensureTickRunning();
+  emitSnapshot();
+}
+
+export function stopVehicle(id: string): void {
+  const v = vehicles.find((x) => x.id === id);
+  if (!v || !v.flight) return;
+  v.flight = false;
+  v.gpsActive = false;
+  v.insActive = false;
+  v.gpsSats = 0;
+  pushLog("warn", "log.tag.link", "log.msg.disconnected", v.callsign);
+  emitSnapshot();
+  maybeStopTick();
 }

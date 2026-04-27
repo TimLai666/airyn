@@ -13,8 +13,8 @@
 
 import type { ServerWebSocket } from "bun";
 import {
-  startSim,
-  stopSim,
+  startVehicle,
+  stopVehicle,
   subscribe,
   getFleetConfig,
   getCurrentSnapshot,
@@ -71,8 +71,8 @@ export function startBridge(port: number): void {
       message(_ws, raw) {
         try {
           const cmd = JSON.parse(typeof raw === "string" ? raw : raw.toString()) as ClientMessage;
-          if (cmd.type === "connect") startSim();
-          else if (cmd.type === "disconnect") stopSim();
+          if (cmd.type === "connect") startVehicle(cmd.id);
+          else if (cmd.type === "disconnect") stopVehicle(cmd.id);
         } catch (err) {
           console.error("[airyn-bridge] bad client message:", err);
         }
