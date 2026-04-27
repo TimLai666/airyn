@@ -142,12 +142,15 @@ const dicts: Record<Lang, Record<string, string>> = {
     "btn.disconnect_flight.meta": "SHIFT+RETURN",
 
     "tab.map": "地圖",
+    "tab.combined": "整合",
     "tab.cameras": "攝影機",
     "tab.sensors": "感測器",
     "tab.mission": "任務",
     "tab.calibration": "校準",
     "tab.log": "紀錄",
     "tab.settings": "設定",
+    "sb.active": "主控載具",
+    "sb.frame": "機型 / 模式",
 
     "fleet.key": "機隊",
     "fleet.summary": "{0} / {1} 機已連線",
@@ -399,12 +402,15 @@ const dicts: Record<Lang, Record<string, string>> = {
     "btn.disconnect_flight.meta": "SHIFT+RETURN",
 
     "tab.map": "MAP",
+    "tab.combined": "COMBINED",
     "tab.cameras": "CAMERAS",
     "tab.sensors": "SENSORS",
     "tab.mission": "MISSION",
     "tab.calibration": "CALIBRATION",
     "tab.log": "LOG",
     "tab.settings": "SETTINGS",
+    "sb.active": "ACTIVE VEHICLE",
+    "sb.frame": "FRAME / MODE",
 
     "fleet.key": "FLEET",
     "fleet.summary": "{0} OF {1} ONLINE",
@@ -778,14 +784,28 @@ function applyI18n(): void {
 
 function setView(name: string): void {
   state.view = name;
-  $$<HTMLButtonElement>(".tab[data-tab]").forEach((tab) => {
+  $$<HTMLButtonElement>("[data-tab]").forEach((tab) => {
     tab.classList.toggle("is-active", tab.dataset["tab"] === name);
   });
   $$<HTMLElement>(".view[data-view]").forEach((view) => {
     view.hidden = view.dataset["view"] !== name;
   });
-  // Leaflet must recompute its container size when it becomes visible
-  if (name === "map" && leafletMap) {
+  // The single Leaflet map element is moved between the MAP and COMBINED
+  // view slots so we don't pay the cost of two map instances + duplicate
+  // markers/polylines.
+  ensureMapMounted(name);
+}
+
+function ensureMapMounted(viewName: string): void {
+  const mapEl = document.getElementById("map-main");
+  if (!mapEl) return;
+  const slot =
+    viewName === "combined" ? document.getElementById("map-slot-combined") :
+    document.getElementById("map-slot-main");
+  if (slot && mapEl.parentElement !== slot) {
+    slot.appendChild(mapEl);
+  }
+  if (leafletMap && (viewName === "map" || viewName === "combined")) {
     requestAnimationFrame(() => leafletMap.invalidateSize());
   }
 }
@@ -1305,18 +1325,38 @@ function predictTick(): void {
 function renderActive(): void {
   const v = activeVehicle();
   if (!v) return;
+
+  // Sidebar + plate-head coord + active callsign always reflect the
+  // active vehicle, even when offline.
+  setText("#sb-active-cs", v.callsign);
   setText("#plate-coord", `${v.lat.toFixed(5)}° N · ${v.lon.toFixed(5)}° E`);
+  setText("#plate-coord-cb", `${v.lat.toFixed(5)}° N · ${v.lon.toFixed(5)}° E`);
+  setText("#cb-cam-class", t("cam.feed", t(`cam.${state.cam}`)));
 
   if (!v.flight) {
     resetTelemetryDisplay();
     return;
   }
 
-  setText("[data-tel='roll']", fmtSigned(v.roll, 1, 4));
-  setText("[data-tel='pitch']", fmtSigned(v.pitch, 1, 4));
-  setText("[data-tel='yaw']", v.yaw.toFixed(1).padStart(5, "0"));
-  setText("[data-tel='thr']", String(v.thr));
-  setText("[data-tel='vbat']", v.vbat.toFixed(1));
+  const roll = fmtSigned(v.roll, 1, 4);
+  const pitch = fmtSigned(v.pitch, 1, 4);
+  const yaw = v.yaw.toFixed(1).padStart(5, "0");
+  const thr = String(v.thr);
+  const vbat = v.vbat.toFixed(1);
+  const armedTxt = v.armed ? t("val.armed.yes") : t("val.armed.no");
+
+  setText("[data-tel='roll']", roll);
+  setText("[data-tel='pitch']", pitch);
+  setText("[data-tel='yaw']", yaw);
+  setText("[data-tel='thr']", thr);
+  setText("[data-tel='vbat']", vbat);
+  // mirror to combined-view compact telemetry
+  setText("[data-tel-cb='roll']", roll);
+  setText("[data-tel-cb='pitch']", pitch);
+  setText("[data-tel-cb='yaw']", yaw);
+  setText("[data-tel-cb='thr']", thr);
+  setText("[data-tel-cb='vbat']", vbat);
+  setText("[data-tel-cb='armed']", armedTxt);
 
   setText("[data-sens='gyro-x']", fmtSigned(v.gyroX, 2, 5));
   setText("[data-sens='gyro-y']", fmtSigned(v.gyroY, 2, 5));
@@ -1380,10 +1420,17 @@ function renderActive(): void {
     dataState.classList.add("state--ok");
   }
 
-  setText("[data-plate='bearing']", `${pad3(v.heading)}°`);
-  setText("[data-plate='range']", `${v.speed.toFixed(1)} m/s`);
-  setText("[data-plate='alt']", v.altitude.toFixed(0));
+  const bearing = `${pad3(v.heading)}°`;
+  const speedTxt = `${v.speed.toFixed(1)} m/s`;
+  const altTxt = v.altitude.toFixed(0);
+  setText("[data-plate='bearing']", bearing);
+  setText("[data-plate='range']", speedTxt);
+  setText("[data-plate='alt']", altTxt);
   setText("[data-plate='sat']", v.gpsActive ? `${v.gpsSats}/${v.gpsSats + 4}` : "0/0");
+  // mirror to combined view
+  setText("[data-plate-cb='bearing']", bearing);
+  setText("[data-plate-cb='range']", speedTxt);
+  setText("[data-plate-cb='alt']", altTxt);
 }
 
 // Connection control is per-vehicle. The CONNECT button drives the
