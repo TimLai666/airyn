@@ -1819,8 +1819,9 @@ function setTransport(tr: Transport): void {
 // ---------- 13. Init ----------
 
 function bind(): void {
-  // Tabs
-  $$<HTMLButtonElement>(".tab[data-tab]").forEach((tab) => {
+  // Sidebar nav (matches both legacy .tab[data-tab] and the new vertical
+  // .nav-item[data-tab] markup so the binding survives layout reshuffles).
+  $$<HTMLButtonElement>("[data-tab]").forEach((tab) => {
     tab.addEventListener("click", () => {
       const name = tab.dataset["tab"];
       if (name) setView(name);
