@@ -11,6 +11,9 @@ export type LinkMode = "direct" | "via-mission";
 export type LinkTransport = "serial" | "udp" | "tcp" | "ws";
 export type VehicleColor = "ochre" | "ice" | "ok";
 export type LogLevel = "info" | "warn" | "err";
+export type VehicleMode = "standby" | "manual" | "hold" | "mission" | "rtl" | "land";
+export type SafetyState = "offline" | "preflight" | "armed" | "failsafe";
+export type VehicleCommand = "arm" | "disarm" | "hold" | "mission" | "rtl" | "land" | "kill";
 
 export interface VehicleLink {
   mode: LinkMode;
@@ -24,6 +27,13 @@ export interface VehicleConfig {
   callsign: string;
   color: VehicleColor;
   link: VehicleLink;
+}
+
+export interface MissionWaypoint {
+  type: "takeoff" | "waypoint" | "land";
+  lat: number;
+  lon: number;
+  alt: number;
 }
 
 /** Per-tick rolling state for one vehicle. */
@@ -59,6 +69,12 @@ export interface VehicleFrame {
    */
   insActive: boolean;
   // attitude / telemetry
+  mode: VehicleMode;
+  safetyState: SafetyState;
+  preflightOk: boolean;
+  missionUploaded: boolean;
+  missionCount: number;
+  missionActiveIndex: number | null;
   roll: number; pitch: number; yaw: number;
   thr: number; vbat: number; armed: boolean;
   // sensors
@@ -93,6 +109,9 @@ export type ServerMessage =
 /** Client → server. Connection is per-vehicle. */
 export type ClientMessage =
   | { type: "connect"; id: string }
-  | { type: "disconnect"; id: string };
+  | { type: "disconnect"; id: string }
+  | { type: "command"; id: string; command: VehicleCommand }
+  | { type: "uploadPlan"; id: string; waypoints: MissionWaypoint[] }
+  | { type: "calibration"; id: string; step: number; capture: number; done: boolean };
 
 export const BRIDGE_PORT = 7711;

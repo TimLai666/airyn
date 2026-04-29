@@ -35,29 +35,26 @@
 
       <aside class="sidebar" aria-label="Workstation navigation">
         <nav class="nav">
-          <button class="nav-item is-active" type="button" data-tab="map">
-            <span class="nav-num">01</span><span class="nav-name" data-i18n="tab.map">MAP</span>
-          </button>
-          <button class="nav-item" type="button" data-tab="combined">
-            <span class="nav-num">02</span><span class="nav-name" data-i18n="tab.combined">COMBINED</span>
+          <button class="nav-item is-active" type="button" data-tab="combined">
+            <span class="nav-num">01</span><span class="nav-name" data-i18n="tab.combined">COMBINED</span>
           </button>
           <button class="nav-item" type="button" data-tab="cameras">
-            <span class="nav-num">03</span><span class="nav-name" data-i18n="tab.cameras">CAMERAS</span>
+            <span class="nav-num">02</span><span class="nav-name" data-i18n="tab.cameras">CAMERAS</span>
           </button>
           <button class="nav-item" type="button" data-tab="sensors">
-            <span class="nav-num">04</span><span class="nav-name" data-i18n="tab.sensors">SENSORS</span>
+            <span class="nav-num">03</span><span class="nav-name" data-i18n="tab.sensors">SENSORS</span>
           </button>
           <button class="nav-item" type="button" data-tab="mission">
-            <span class="nav-num">05</span><span class="nav-name" data-i18n="tab.mission">MISSION</span>
+            <span class="nav-num">04</span><span class="nav-name" data-i18n="tab.mission">MISSION</span>
           </button>
           <button class="nav-item" type="button" data-tab="calibration">
-            <span class="nav-num">06</span><span class="nav-name" data-i18n="tab.calibration">CALIBRATION</span>
+            <span class="nav-num">05</span><span class="nav-name" data-i18n="tab.calibration">CALIBRATION</span>
           </button>
           <button class="nav-item" type="button" data-tab="log">
-            <span class="nav-num">07</span><span class="nav-name" data-i18n="tab.log">LOG</span>
+            <span class="nav-num">06</span><span class="nav-name" data-i18n="tab.log">LOG</span>
           </button>
           <button class="nav-item" type="button" data-tab="settings">
-            <span class="nav-num">08</span><span class="nav-name" data-i18n="tab.settings">SETTINGS</span>
+            <span class="nav-num">07</span><span class="nav-name" data-i18n="tab.settings">SETTINGS</span>
           </button>
         </nav>
 
@@ -82,10 +79,10 @@
             </span>
             <span class="rail-foot" data-i18n="rail.linkpath.foot">—</span>
           </div>
-          <div class="sb-active-row">
+          <div class="sb-active-row" data-rail="mode">
             <span class="sb-row-key" data-i18n="sb.frame">FRAME / MODE</span>
             <span class="rail-val">
-              <span class="rail-val-text" data-i18n="val.testbench">TESTBENCH</span>
+              <span class="rail-val-text" data-i18n="mode.standby">STANDBY</span>
             </span>
             <span class="rail-foot" data-i18n="rail.mode.foot">bench config · safe</span>
           </div>
@@ -93,6 +90,43 @@
             <span class="op-btn-label" data-i18n="btn.connect_flight">CONNECT</span>
             <span class="op-btn-meta">DIRECT TO FC</span>
           </button>
+        </section>
+
+        <section class="sb-block sb-commands">
+          <header class="sb-head">
+            <span class="sb-key" data-i18n="sb.commands">FLIGHT COMMANDS</span>
+            <span class="sb-meta command-state" data-command-state data-i18n="safety.offline">OFFLINE</span>
+          </header>
+          <div class="command-grid">
+            <button class="op-btn op-btn--safety" type="button" data-command="arm">
+              <span class="op-btn-label" data-i18n="btn.arm">ARM</span>
+              <span class="op-btn-meta" data-i18n="btn.arm.meta">ENABLE MOTORS</span>
+            </button>
+            <button class="op-btn" type="button" data-command="hold">
+              <span class="op-btn-label" data-i18n="btn.hold">HOLD</span>
+              <span class="op-btn-meta" data-i18n="btn.hold.meta">KEEP POSITION</span>
+            </button>
+            <button class="op-btn op-btn--primary" type="button" data-command="mission">
+              <span class="op-btn-label" data-i18n="btn.mission_start">START MISSION</span>
+              <span class="op-btn-meta" data-i18n="btn.mission_start.meta">RUN UPLOADED PLAN</span>
+            </button>
+            <button class="op-btn" type="button" data-command="rtl">
+              <span class="op-btn-label" data-i18n="btn.rtl">RTL</span>
+              <span class="op-btn-meta" data-i18n="btn.rtl.meta">RETURN HOME</span>
+            </button>
+            <button class="op-btn" type="button" data-command="land">
+              <span class="op-btn-label" data-i18n="btn.land">LAND</span>
+              <span class="op-btn-meta" data-i18n="btn.land.meta">CONTROLLED DESCENT</span>
+            </button>
+            <button class="op-btn" type="button" data-command="disarm">
+              <span class="op-btn-label" data-i18n="btn.disarm">DISARM</span>
+              <span class="op-btn-meta" data-i18n="btn.disarm.meta">STOP NORMAL OUTPUT</span>
+            </button>
+            <button class="op-btn op-btn--danger command-span" type="button" data-command="kill">
+              <span class="op-btn-label" data-i18n="btn.kill">MOTOR CUT</span>
+              <span class="op-btn-meta" data-i18n="btn.kill.meta">AIRBORNE CRASH RISK</span>
+            </button>
+          </div>
         </section>
 
         <section class="sb-block sb-fleet">
@@ -106,7 +140,7 @@
 
       <section class="content">
         <!-- MAP -->
-        <section class="view view--map" data-view="map">
+        <section class="view view--map" data-view="map" hidden>
           <article class="plate plate--map">
             <div class="plate-frame" aria-hidden="true">
               <span class="corner corner--tl"></span>
@@ -139,7 +173,7 @@
             <section class="readout-block">
               <header class="readout-head">
                 <span class="readout-key" data-i18n="readout.telemetry">TELEMETRY</span>
-                <span class="readout-status" data-i18n="readout.safe_disarmed">SAFE / DISARMED</span>
+                <span class="readout-status" data-status="armed" data-i18n="readout.safe_disarmed">SAFE / DISARMED</span>
               </header>
               <dl class="readout-list">
                 <div><dt data-i18n="tel.roll">ROLL</dt><dd><span class="num" data-tel="roll">+0.0</span><span class="unit">°</span></dd></div>
@@ -147,7 +181,7 @@
                 <div><dt data-i18n="tel.yaw">YAW</dt><dd><span class="num" data-tel="yaw">000.0</span><span class="unit">°</span></dd></div>
                 <div><dt data-i18n="tel.thr">THR</dt><dd><span class="num" data-tel="thr">0</span><span class="unit">%</span></dd></div>
                 <div><dt data-i18n="tel.vbat">VBAT</dt><dd><span class="num" data-tel="vbat">--.-</span><span class="unit">V</span></dd></div>
-                <div><dt data-i18n="tel.armed">ARMED</dt><dd class="armed-no"><span class="num" data-i18n="val.armed.no">NO</span></dd></div>
+                <div><dt data-i18n="tel.armed">ARMED</dt><dd class="armed-no"><span class="num" data-tel="armed" data-i18n="val.armed.no">NO</span></dd></div>
               </dl>
             </section>
 
@@ -166,7 +200,7 @@
         </section>
 
         <!-- COMBINED: map + cam + telem -->
-        <section class="view view--combined" data-view="combined" hidden>
+        <section class="view view--combined" data-view="combined">
           <article class="plate plate--map cb-plate">
             <div class="plate-frame" aria-hidden="true">
               <span class="corner corner--tl"></span>
@@ -211,7 +245,7 @@
           <aside class="cb-telem">
             <header class="readout-head">
               <span class="readout-key" data-i18n="readout.telemetry">TELEMETRY</span>
-              <span class="readout-status" data-i18n="readout.safe_disarmed">SAFE / DISARMED</span>
+              <span class="readout-status" data-status="armed" data-i18n="readout.safe_disarmed">SAFE / DISARMED</span>
             </header>
             <dl class="cb-telem-grid">
               <div><dt data-i18n="tel.roll">ROLL</dt><dd><span class="num" data-tel-cb="roll">+0.0</span><span class="unit">°</span></dd></div>
@@ -221,6 +255,46 @@
               <div><dt data-i18n="tel.vbat">VBAT</dt><dd><span class="num" data-tel-cb="vbat">--.-</span><span class="unit">V</span></dd></div>
               <div><dt data-i18n="tel.armed">ARMED</dt><dd class="armed-no"><span class="num" data-tel-cb="armed">NO</span></dd></div>
             </dl>
+          <article class="analysis-panel cb-altitude">
+            <header class="readout-head">
+              <span class="readout-key" data-i18n="panel.height_profile">HEIGHT PROFILE</span>
+              <span class="readout-status" data-i18n="profile.planned_current">PLAN / LIVE</span>
+            </header>
+            <svg class="alt-profile" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polygon data-profile-terrain points="0,100 100,100" />
+              <polyline data-profile-plan points="" />
+              <circle data-profile-current cx="0" cy="95" r="2.2" />
+            </svg>
+            <div class="profile-meta">
+              <span><span data-i18n="mission.foot.dist">DIST</span> <em data-profile="dist">0.00 km</em></span>
+              <span><span data-i18n="mission.foot.alt_min">ALT MIN</span> <em data-profile="alt-min">—</em></span>
+              <span><span data-i18n="mission.foot.alt_max">ALT MAX</span> <em data-profile="alt-max">—</em></span>
+              <span><span data-i18n="terrain.clearance">CLEARANCE</span> <em data-profile="clearance">—</em></span>
+            </div>
+          </article>
+
+          <article class="analysis-panel cb-terrain">
+            <header class="readout-head">
+              <span class="readout-key" data-i18n="panel.terrain_relative">TERRAIN / AIRCRAFT</span>
+              <span class="readout-status" data-i18n="terrain.estimated">ESTIMATED</span>
+            </header>
+            <div class="terrain-scope" aria-hidden="true">
+              <svg viewBox="0 0 100 100" preserveAspectRatio="none">
+                <path class="terrain-scope-fill" data-terrain-cross-section d="M0,82 C12,78 22,88 34,76 C48,62 60,70 72,58 C84,45 92,52 100,42 L100,100 L0,100 Z" />
+                <line class="terrain-bearing-line" data-terrain-bearing-line x1="50" y1="50" x2="50" y2="15" />
+                <line class="terrain-altitude-line" data-terrain-altitude-line x1="50" y1="50" x2="50" y2="82" />
+                <circle class="terrain-ground-dot" data-terrain-ground-dot cx="50" cy="82" r="2.2" />
+                <circle class="terrain-aircraft-ring" data-terrain-ring cx="50" cy="40" r="23" />
+                <circle class="terrain-aircraft-dot" data-terrain-dot cx="50" cy="40" r="3.2" />
+              </svg>
+            </div>
+            <dl class="terrain-stats">
+              <div><dt data-i18n="terrain.msl">MSL</dt><dd data-terrain="msl">—</dd></div>
+              <div><dt data-i18n="terrain.agl">AGL</dt><dd data-terrain="agl">—</dd></div>
+              <div><dt data-i18n="terrain.ground">GROUND</dt><dd data-terrain="ground">—</dd></div>
+              <div><dt data-i18n="terrain.bearing">BRG</dt><dd data-terrain="bearing">—</dd></div>
+            </dl>
+          </article>
           </aside>
         </section>
 
@@ -435,17 +509,17 @@
             </header>
 
             <svg class="wp-path" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              <polyline points="22,75 50,42 78,30" stroke="rgba(209,139,72,0.55)" stroke-width="0.4" fill="none" stroke-dasharray="1.5 1.2"/>
+              <polyline data-mission-path points="22,75 50,42 78,30" stroke="rgba(209,139,72,0.55)" stroke-width="0.4" fill="none" stroke-dasharray="1.5 1.2"/>
             </svg>
             <span class="wp wp--1" style="left:22%; top:75%"><em>01</em></span>
             <span class="wp wp--2" style="left:50%; top:42%"><em>02</em></span>
             <span class="wp wp--3" style="left:78%; top:30%"><em>03</em></span>
 
             <footer class="plate-foot">
-              <span><span data-i18n="mission.foot.dist">DIST</span> <em>0.00 km</em></span>
-              <span><span data-i18n="mission.foot.eta">ETA</span> <em>—</em></span>
-              <span><span data-i18n="mission.foot.alt_min">ALT MIN</span> <em>—</em></span>
-              <span><span data-i18n="mission.foot.alt_max">ALT MAX</span> <em>—</em></span>
+              <span><span data-i18n="mission.foot.dist">DIST</span> <em data-mission="dist">0.00 km</em></span>
+              <span><span data-i18n="mission.foot.eta">ETA</span> <em data-mission="eta">—</em></span>
+              <span><span data-i18n="mission.foot.alt_min">ALT MIN</span> <em data-mission="alt-min">—</em></span>
+              <span><span data-i18n="mission.foot.alt_max">ALT MAX</span> <em data-mission="alt-max">—</em></span>
             </footer>
           </article>
 
@@ -462,6 +536,7 @@
                   <th data-i18n="mission.col.lat">LAT</th>
                   <th data-i18n="mission.col.lon">LON</th>
                   <th data-i18n="mission.col.alt">ALT</th>
+                  <th data-i18n="mission.col.actions">ACTIONS</th>
                 </tr>
               </thead>
               <tbody></tbody>
@@ -470,7 +545,7 @@
             <div class="plan-actions">
               <button class="op-btn" type="button" data-action="wp-new"><span class="op-btn-label" data-i18n="btn.new_wp">NEW WP</span><span class="op-btn-meta">N</span></button>
               <button class="op-btn op-btn--primary" type="button" data-action="wp-upload"><span class="op-btn-label" data-i18n="btn.upload">UPLOAD PLAN</span><span class="op-btn-meta">CTRL+U</span></button>
-              <button class="op-btn" type="button"><span class="op-btn-label" data-i18n="btn.download">DOWNLOAD</span><span class="op-btn-meta">CTRL+D</span></button>
+              <button class="op-btn" type="button" data-action="wp-download"><span class="op-btn-label" data-i18n="btn.download">DOWNLOAD</span><span class="op-btn-meta">CTRL+D</span></button>
               <button class="op-btn" type="button" data-action="wp-clear"><span class="op-btn-label" data-i18n="btn.clear">CLEAR</span><span class="op-btn-meta">CTRL+SHIFT+X</span></button>
             </div>
           </aside>

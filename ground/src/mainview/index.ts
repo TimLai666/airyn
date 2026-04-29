@@ -25,6 +25,10 @@ type LogFilter = "all" | LogLevel;
 type VehicleColor = "ochre" | "ice" | "ok";
 type LinkMode = "direct" | "via-mission";
 type LinkTransport = "serial" | "udp" | "tcp" | "ws";
+type VehicleMode = "standby" | "manual" | "hold" | "mission" | "rtl" | "land";
+type SafetyState = "offline" | "preflight" | "armed" | "failsafe";
+type VehicleCommand = "arm" | "disarm" | "hold" | "mission" | "rtl" | "land" | "kill";
+type WaypointType = "wp.takeoff" | "wp.waypt" | "wp.land";
 
 declare const L: any;
 
@@ -66,6 +70,12 @@ interface Vehicle {
   /** Snapshot at the moment of link loss; used by the prediction tick. */
   predictionStart: { lat: number; lon: number; heading: number; speed: number; tMs: number } | null;
   // attitude / telemetry
+  mode: VehicleMode;
+  safetyState: SafetyState;
+  preflightOk: boolean;
+  missionUploaded: boolean;
+  missionCount: number;
+  missionActiveIndex: number | null;
   roll: number; pitch: number; yaw: number;
   thr: number; vbat: number; armed: boolean;
   // sensors
@@ -135,14 +145,42 @@ const dicts: Record<Lang, Record<string, string>> = {
     "val.rate": "角速度",
     "val.armed.no": "否",
     "val.armed.yes": "是",
+    "mode.standby": "待命",
+    "mode.manual": "手動",
+    "mode.hold": "定點",
+    "mode.mission": "任務",
+    "mode.rtl": "返航",
+    "mode.land": "降落",
+    "safety.offline": "離線",
+    "safety.preflight": "起飛前檢查",
+    "safety.armed": "已武裝",
+    "safety.failsafe": "失效保護",
+    "sb.commands": "飛行指令",
+    "sb.commands.state": "{0}",
 
     "btn.connect_flight": "連線",
     "btn.connect_flight.meta": "{0}",
     "btn.disconnect_flight": "中斷連線",
     "btn.disconnect_flight.meta": "SHIFT+RETURN",
+    "btn.disconnect_locked": "連線保持",
+    "btn.disconnect_locked.meta": "先降落或解除武裝",
+    "btn.arm": "武裝",
+    "btn.arm.meta": "允許馬達輸出",
+    "btn.disarm": "解除武裝",
+    "btn.disarm.meta": "停止一般輸出",
+    "btn.hold": "定點",
+    "btn.hold.meta": "保持位置",
+    "btn.mission_start": "執行任務",
+    "btn.mission_start.meta": "使用已上傳計畫",
+    "btn.rtl": "返航",
+    "btn.rtl.meta": "返回起點",
+    "btn.land": "降落",
+    "btn.land.meta": "受控下降",
+    "btn.kill": "馬達切斷",
+    "btn.kill.meta": "空中會墜落",
 
     "tab.map": "地圖",
-    "tab.combined": "整合",
+    "tab.combined": "主控",
     "tab.cameras": "攝影機",
     "tab.sensors": "感測器",
     "tab.mission": "任務",
@@ -261,6 +299,15 @@ const dicts: Record<Lang, Record<string, string>> = {
     "mission.foot.eta": "預計",
     "mission.foot.alt_min": "最低",
     "mission.foot.alt_max": "最高",
+    "panel.height_profile": "高度剖面",
+    "panel.terrain_relative": "地形 / 載具",
+    "profile.planned_current": "計畫 / 即時",
+    "terrain.estimated": "地形估算",
+    "terrain.clearance": "離地裕度",
+    "terrain.msl": "海拔",
+    "terrain.agl": "離地",
+    "terrain.ground": "地面",
+    "terrain.bearing": "方位",
     "mission.waypoints": "航點",
     "mission.planned": "{0} 已規劃",
     "mission.col.idx": "#",
@@ -268,6 +315,8 @@ const dicts: Record<Lang, Record<string, string>> = {
     "mission.col.lat": "緯度",
     "mission.col.lon": "經度",
     "mission.col.alt": "高度",
+    "mission.col.actions": "動作",
+    "mission.uploaded": "{0} 個已上傳",
     "wp.takeoff": "起飛",
     "wp.waypt": "航點",
     "wp.land": "降落",
@@ -317,6 +366,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.tag.ui": "介面",
     "log.tag.gps": "GPS",
     "log.tag.cal": "校準",
+    "log.tag.cmd": "指令",
     "log.msg.boot": "Airyn Ground 啟動 · v0.1.0",
     "log.msg.view_loaded": "主視圖載入 · 1180×780",
     "log.msg.awaiting": "等待飛控連線於 serial / udp",
@@ -328,11 +378,30 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.connected": "{0} 飛控已連線 · 遙測 100 Hz · {1}",
     "log.msg.connected_via_mission": "{0} 任務電腦握手成功 · {1} → 中繼飛控遙測",
     "log.msg.disconnected": "{0} 飛控連線中斷",
+    "log.msg.disconnect_blocked_armed": "{0} 仍在武裝狀態，請先降落或解除武裝再中斷連線",
     "log.msg.gps_fix": "{0} GPS 取得 3D 定位 · {1} 顆衛星",
     "log.msg.cal_capture": "已擷取校準姿勢 {0} / 步驟 {1}",
+    "log.msg.cal_step_done": "校準步驟 {1} 完成",
     "log.msg.plan_upload": "已上傳計畫 · {0} 航點",
     "log.msg.plan_clear": "已清空計畫",
     "log.msg.plan_new": "新增航點 · #{0}",
+    "log.msg.plan_download": "已匯出計畫 · {0} 航點",
+    "log.msg.plan_update": "已更新航點 · #{0}",
+    "log.msg.plan_delete": "已刪除航點 · #{0}",
+    "log.msg.command_sent": "已送出指令 · {0}",
+    "log.msg.command_rejected_offline": "{0} 離線，指令未執行",
+    "log.msg.command_rejected_disarmed": "{0} 未武裝，指令未執行",
+    "log.msg.command_rejected_no_plan": "{0} 尚未上傳任務計畫",
+    "log.msg.arm_rejected": "{0} 起飛前檢查未通過，拒絕武裝",
+    "log.msg.command_arm": "{0} 已武裝",
+    "log.msg.command_disarm": "{0} 已解除武裝",
+    "log.msg.command_hold": "{0} 切換定點模式",
+    "log.msg.command_mission": "{0} 開始執行任務 · {1} 航點",
+    "log.msg.command_rtl": "{0} 返航中",
+    "log.msg.command_land": "{0} 降落中",
+    "log.msg.command_kill": "{0} 急停已執行",
+    "log.msg.auto_disarmed": "{0} 已落地並自動解除武裝",
+    "log.msg.bridge_offline": "地面 bridge 尚未連線，指令未送出",
     "log.msg.lang_switch": "介面語言切換為 {0}",
 
     "settings.transport": "飛控連線方式",
@@ -395,11 +464,39 @@ const dicts: Record<Lang, Record<string, string>> = {
     "val.rate": "RATE",
     "val.armed.no": "NO",
     "val.armed.yes": "YES",
+    "mode.standby": "STANDBY",
+    "mode.manual": "MANUAL",
+    "mode.hold": "HOLD",
+    "mode.mission": "MISSION",
+    "mode.rtl": "RTL",
+    "mode.land": "LAND",
+    "safety.offline": "OFFLINE",
+    "safety.preflight": "PREFLIGHT",
+    "safety.armed": "ARMED",
+    "safety.failsafe": "FAILSAFE",
+    "sb.commands": "FLIGHT COMMANDS",
+    "sb.commands.state": "{0}",
 
     "btn.connect_flight": "CONNECT",
     "btn.connect_flight.meta": "{0}",
     "btn.disconnect_flight": "DISCONNECT",
     "btn.disconnect_flight.meta": "SHIFT+RETURN",
+    "btn.disconnect_locked": "LINK HELD",
+    "btn.disconnect_locked.meta": "LAND OR DISARM FIRST",
+    "btn.arm": "ARM",
+    "btn.arm.meta": "ENABLE MOTORS",
+    "btn.disarm": "DISARM",
+    "btn.disarm.meta": "STOP NORMAL OUTPUT",
+    "btn.hold": "HOLD",
+    "btn.hold.meta": "KEEP POSITION",
+    "btn.mission_start": "START MISSION",
+    "btn.mission_start.meta": "RUN UPLOADED PLAN",
+    "btn.rtl": "RTL",
+    "btn.rtl.meta": "RETURN HOME",
+    "btn.land": "LAND",
+    "btn.land.meta": "CONTROLLED DESCENT",
+    "btn.kill": "MOTOR CUT",
+    "btn.kill.meta": "AIRBORNE CRASH RISK",
 
     "tab.map": "MAP",
     "tab.combined": "COMBINED",
@@ -521,6 +618,15 @@ const dicts: Record<Lang, Record<string, string>> = {
     "mission.foot.eta": "ETA",
     "mission.foot.alt_min": "ALT MIN",
     "mission.foot.alt_max": "ALT MAX",
+    "panel.height_profile": "HEIGHT PROFILE",
+    "panel.terrain_relative": "TERRAIN / AIRCRAFT",
+    "profile.planned_current": "PLAN / LIVE",
+    "terrain.estimated": "ESTIMATED",
+    "terrain.clearance": "CLEARANCE",
+    "terrain.msl": "MSL",
+    "terrain.agl": "AGL",
+    "terrain.ground": "GROUND",
+    "terrain.bearing": "BRG",
     "mission.waypoints": "WAYPOINTS",
     "mission.planned": "{0} PLANNED",
     "mission.col.idx": "#",
@@ -528,6 +634,8 @@ const dicts: Record<Lang, Record<string, string>> = {
     "mission.col.lat": "LAT",
     "mission.col.lon": "LON",
     "mission.col.alt": "ALT",
+    "mission.col.actions": "ACTIONS",
+    "mission.uploaded": "{0} UPLOADED",
     "wp.takeoff": "TAKEOFF",
     "wp.waypt": "WAYPT",
     "wp.land": "LAND",
@@ -577,6 +685,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.tag.ui": "UI",
     "log.tag.gps": "GPS",
     "log.tag.cal": "CAL",
+    "log.tag.cmd": "CMD",
     "log.msg.boot": "Airyn Ground started · v0.1.0",
     "log.msg.view_loaded": "Loaded mainview · 1180×780",
     "log.msg.awaiting": "Awaiting flight controller on serial / udp",
@@ -588,11 +697,30 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.connected": "{0} flight controller connected · telemetry 100 Hz · {1}",
     "log.msg.connected_via_mission": "{0} mission computer handshake OK · {1} → relaying flight controller telemetry",
     "log.msg.disconnected": "{0} flight controller disconnected",
+    "log.msg.disconnect_blocked_armed": "{0} is armed; land or disarm before disconnecting",
     "log.msg.gps_fix": "{0} GPS acquired 3D fix · {1} satellites",
     "log.msg.cal_capture": "Captured calibration pose {0} for step {1}",
+    "log.msg.cal_step_done": "Calibration step {1} complete",
     "log.msg.plan_upload": "Plan uploaded · {0} waypoints",
     "log.msg.plan_clear": "Plan cleared",
     "log.msg.plan_new": "New waypoint · #{0}",
+    "log.msg.plan_download": "Plan exported · {0} waypoints",
+    "log.msg.plan_update": "Waypoint updated · #{0}",
+    "log.msg.plan_delete": "Waypoint deleted · #{0}",
+    "log.msg.command_sent": "Command sent · {0}",
+    "log.msg.command_rejected_offline": "{0} is offline; command not executed",
+    "log.msg.command_rejected_disarmed": "{0} is disarmed; command not executed",
+    "log.msg.command_rejected_no_plan": "{0} has no uploaded mission plan",
+    "log.msg.arm_rejected": "{0} preflight failed; arm rejected",
+    "log.msg.command_arm": "{0} armed",
+    "log.msg.command_disarm": "{0} disarmed",
+    "log.msg.command_hold": "{0} switched to hold",
+    "log.msg.command_mission": "{0} started mission · {1} waypoints",
+    "log.msg.command_rtl": "{0} returning home",
+    "log.msg.command_land": "{0} landing",
+    "log.msg.command_kill": "{0} motor stop executed",
+    "log.msg.auto_disarmed": "{0} landed and auto-disarmed",
+    "log.msg.bridge_offline": "Ground bridge is not connected; command was not sent",
     "log.msg.lang_switch": "UI language switched to {0}",
 
     "settings.transport": "FLIGHT TRANSPORT",
@@ -659,6 +787,12 @@ function makeVehicle(
     insTrack: [],
     predictedTrack: [],
     predictionStart: null,
+    mode: "standby",
+    safetyState: "offline",
+    preflightOk: false,
+    missionUploaded: false,
+    missionCount: 0,
+    missionActiveIndex: null,
     roll: 0, pitch: 0, yaw: heading,
     thr: 0, vbat: 0, armed: false,
     gyroX: 0, gyroY: 0, gyroZ: 0,
@@ -687,7 +821,7 @@ function makeFleet(): Vehicle[] {
 
 const initialState: State = {
   lang: "zh",
-  view: "map",
+  view: "combined",
   cam: "fpv",
   flight: false,
   mission: false,
@@ -974,6 +1108,9 @@ function setActiveVehicle(id: string, recenter: boolean): void {
   renderLinkPath();
   renderActiveLinkRail();
   renderConnectButton();
+  renderFlightModeRail();
+  renderCommandControls();
+  renderMissionActiveState();
   refreshTransportStatusFromActive();
   pushLog("info", "log.tag.ui", "log.msg.veh_select", next.callsign);
 }
@@ -1097,9 +1234,25 @@ function connectBridge(): void {
   });
 }
 
-function sendBridge(cmd: { type: "connect" | "disconnect"; id: string }): void {
-  if (!bridgeSocket || bridgeSocket.readyState !== 1 /* OPEN */) return;
-  try { bridgeSocket.send(JSON.stringify(cmd)); } catch { /* */ }
+type BridgeClientMessage =
+  | { type: "connect"; id: string }
+  | { type: "disconnect"; id: string }
+  | { type: "command"; id: string; command: VehicleCommand }
+  | { type: "uploadPlan"; id: string; waypoints: ServerMissionWaypoint[] }
+  | { type: "calibration"; id: string; step: number; capture: number; done: boolean };
+
+function sendBridge(cmd: BridgeClientMessage): boolean {
+  if (!bridgeSocket || bridgeSocket.readyState !== 1 /* OPEN */) {
+    pushLog("warn", "log.tag.link", "log.msg.bridge_offline");
+    return false;
+  }
+  try {
+    bridgeSocket.send(JSON.stringify(cmd));
+    return true;
+  } catch {
+    pushLog("warn", "log.tag.link", "log.msg.bridge_offline");
+    return false;
+  }
 }
 
 interface ServerHello {
@@ -1122,12 +1275,25 @@ interface VehicleFramePayload {
   altitude: number; speed: number; heading: number;
   gpsActive: boolean; gpsSats: number; gpsHdop: number;
   insActive: boolean;
+  mode: VehicleMode;
+  safetyState: SafetyState;
+  preflightOk: boolean;
+  missionUploaded: boolean;
+  missionCount: number;
+  missionActiveIndex: number | null;
   roll: number; pitch: number; yaw: number;
   thr: number; vbat: number; armed: boolean;
   gyroX: number; gyroY: number; gyroZ: number;
   accelX: number; accelY: number; accelZ: number;
   baroAlt: number; baroVs: number; baroP: number; baroT: number;
   batI: number; batUsed: number;
+}
+
+interface ServerMissionWaypoint {
+  type: "takeoff" | "waypoint" | "land";
+  lat: number;
+  lon: number;
+  alt: number;
 }
 
 interface ServerFleetFrame {
@@ -1178,6 +1344,8 @@ function onHello(hello: ServerHello): void {
   renderActiveLinkRail();
   renderLinkPath();
   renderConnectButton();
+  renderFlightModeRail();
+  renderCommandControls();
 }
 
 function applyFleetFrame(frame: ServerFleetFrame): void {
@@ -1200,6 +1368,12 @@ function applyFleetFrame(frame: ServerFleetFrame): void {
     v.altitude = f.altitude; v.speed = f.speed; v.heading = f.heading;
     v.gpsActive = f.gpsActive; v.gpsSats = f.gpsSats; v.gpsHdop = f.gpsHdop;
     v.insActive = f.insActive;
+    v.mode = f.mode;
+    v.safetyState = f.safetyState;
+    v.preflightOk = f.preflightOk;
+    v.missionUploaded = f.missionUploaded;
+    v.missionCount = f.missionCount;
+    v.missionActiveIndex = f.missionActiveIndex;
     v.roll = f.roll; v.pitch = f.pitch; v.yaw = f.yaw;
     v.thr = f.thr; v.vbat = f.vbat; v.armed = f.armed;
     v.gyroX = f.gyroX; v.gyroY = f.gyroY; v.gyroZ = f.gyroZ;
@@ -1280,6 +1454,8 @@ function applyFleetFrame(frame: ServerFleetFrame): void {
   // it's cheap.
   renderActiveLinkRail();
   renderConnectButton();
+  renderFlightModeRail();
+  renderCommandControls();
   refreshTransportStatusFromActive();
   if (fleetWasFlying !== state.flight) {
     refreshLedger();
@@ -1344,12 +1520,14 @@ function renderActive(): void {
   const thr = String(v.thr);
   const vbat = v.vbat.toFixed(1);
   const armedTxt = v.armed ? t("val.armed.yes") : t("val.armed.no");
+  const safetyTxt = v.armed ? t("readout.armed_active") : t("readout.safe_disarmed");
 
   setText("[data-tel='roll']", roll);
   setText("[data-tel='pitch']", pitch);
   setText("[data-tel='yaw']", yaw);
   setText("[data-tel='thr']", thr);
   setText("[data-tel='vbat']", vbat);
+  setText("[data-tel='armed']", armedTxt);
   // mirror to combined-view compact telemetry
   setText("[data-tel-cb='roll']", roll);
   setText("[data-tel-cb='pitch']", pitch);
@@ -1357,6 +1535,11 @@ function renderActive(): void {
   setText("[data-tel-cb='thr']", thr);
   setText("[data-tel-cb='vbat']", vbat);
   setText("[data-tel-cb='armed']", armedTxt);
+  $$<HTMLElement>("[data-status='armed']").forEach((el) => {
+    el.textContent = safetyTxt;
+    el.classList.toggle("state--ok", v.armed);
+    el.classList.toggle("state--warn", v.safetyState === "failsafe");
+  });
 
   setText("[data-sens='gyro-x']", fmtSigned(v.gyroX, 2, 5));
   setText("[data-sens='gyro-y']", fmtSigned(v.gyroY, 2, 5));
@@ -1431,6 +1614,8 @@ function renderActive(): void {
   setText("[data-plate-cb='bearing']", bearing);
   setText("[data-plate-cb='range']", speedTxt);
   setText("[data-plate-cb='alt']", altTxt);
+  renderAltitudeProfile();
+  renderTerrainRelative();
 }
 
 // Connection control is per-vehicle. The CONNECT button drives the
@@ -1439,6 +1624,12 @@ function renderActive(): void {
 // owned by ground/src/bun/sim.ts.
 
 function setVehicleConnected(id: string, on: boolean): void {
+  const v = state.vehicles.find((vehicle) => vehicle.id === id);
+  if (!on && v?.armed) {
+    pushLog("warn", "log.tag.safe", "log.msg.disconnect_blocked_armed", v.callsign);
+    renderConnectButton();
+    return;
+  }
   sendBridge({ type: on ? "connect" : "disconnect", id });
 }
 
@@ -1448,6 +1639,14 @@ function setActiveVehicleConnected(on: boolean): void {
   setVehicleConnected(v.id, on);
 }
 
+function sendVehicleCommand(command: VehicleCommand): void {
+  const v = activeVehicle();
+  if (!v) return;
+  if (sendBridge({ type: "command", id: v.id, command })) {
+    pushLog("info", "log.tag.cmd", "log.msg.command_sent", t(`btn.${command === "mission" ? "mission_start" : command}`));
+  }
+}
+
 function resetTelemetryDisplay(): void {
   const telemReset: Record<string, string> = {
     "[data-tel='roll']": "+0.0",
@@ -1455,6 +1654,8 @@ function resetTelemetryDisplay(): void {
     "[data-tel='yaw']": "000.0",
     "[data-tel='thr']": "0",
     "[data-tel='vbat']": "--.-",
+    "[data-tel='armed']": t("val.armed.no"),
+    "[data-tel-cb='armed']": t("val.armed.no"),
     "[data-sens='gyro-x']": "+0.00",
     "[data-sens='gyro-y']": "+0.00",
     "[data-sens='gyro-z']": "+0.00",
@@ -1522,6 +1723,13 @@ function resetTelemetryDisplay(): void {
 
   const needle = $<HTMLElement>(".compass-needle");
   if (needle) needle.style.transform = "translate(-50%, -50%) rotate(0deg)";
+
+  $$<HTMLElement>("[data-status='armed']").forEach((el) => {
+    el.textContent = t("readout.safe_disarmed");
+    el.classList.remove("state--ok", "state--warn");
+  });
+  renderAltitudeProfile();
+  renderTerrainRelative();
 }
 
 // ---------- 8. Connect / disconnect ----------
@@ -1538,13 +1746,76 @@ function renderLinkPath(): void {
 
 function renderConnectButton(): void {
   const v = activeVehicle();
-  const connectBtn = $<HTMLElement>("[data-action='connect-flight']");
+  const connectBtn = $<HTMLButtonElement>("[data-action='connect-flight']");
   if (!connectBtn) return;
   const label = connectBtn.querySelector<HTMLElement>(".op-btn-label");
   const meta = connectBtn.querySelector<HTMLElement>(".op-btn-meta");
-  if (label) label.textContent = v.flight ? t("btn.disconnect_flight") : t("btn.connect_flight");
+  const disconnectLocked = v.flight && v.armed;
+  connectBtn.disabled = disconnectLocked;
+  if (label) {
+    label.textContent =
+      disconnectLocked ? t("btn.disconnect_locked") :
+      v.flight ? t("btn.disconnect_flight") :
+      t("btn.connect_flight");
+  }
   const metaTxt = v.link.mode === "via-mission" ? t("linkpath.via_mission") : t("linkpath.direct");
-  if (meta) meta.textContent = v.flight ? t("btn.disconnect_flight.meta") : metaTxt;
+  if (meta) {
+    meta.textContent =
+      disconnectLocked ? t("btn.disconnect_locked.meta") :
+      v.flight ? t("btn.disconnect_flight.meta") :
+      metaTxt;
+  }
+}
+
+function renderFlightModeRail(): void {
+  const v = activeVehicle();
+  const valEl = $<HTMLElement>("[data-rail='mode'] .rail-val-text");
+  const dotWrap = $<HTMLElement>("[data-rail='mode'] .rail-val");
+  const footEl = $<HTMLElement>("[data-rail='mode'] .rail-foot");
+  if (valEl) valEl.textContent = t(`mode.${v.mode}`);
+  if (dotWrap) dotWrap.dataset["state"] =
+    v.safetyState === "failsafe" ? "warn" :
+    v.armed ? "ok" :
+    v.preflightOk ? "direct" :
+    "offline";
+  if (footEl) {
+    const uploaded = v.missionUploaded ? t("mission.uploaded", v.missionCount) : t("rail.mode.foot");
+    footEl.textContent = `${t(`safety.${v.safetyState}`)} · ${uploaded}`;
+  }
+}
+
+function commandEnabled(command: VehicleCommand, v: Vehicle): boolean {
+  if (command === "kill") return v.flight && v.armed;
+  if (!v.flight || !v.linkActive) return false;
+  if (command === "arm") return !v.armed && v.preflightOk;
+  if (!v.armed) return false;
+  if (command === "mission") return !missionPlanDirty && v.missionUploaded && v.missionCount > 0;
+  return true;
+}
+
+function renderCommandControls(): void {
+  const v = activeVehicle();
+  const stateEl = $<HTMLElement>("[data-command-state]");
+  if (stateEl) {
+    stateEl.textContent = t(`safety.${v.safetyState}`);
+    stateEl.classList.toggle("state--ok", v.armed || (v.flight && v.preflightOk));
+    stateEl.classList.toggle("state--warn", v.safetyState === "failsafe" || (!v.preflightOk && v.flight));
+    stateEl.classList.toggle("state--off", !v.flight);
+  }
+
+  $$<HTMLButtonElement>("[data-command]").forEach((btn) => {
+    const command = btn.dataset["command"] as VehicleCommand | undefined;
+    if (!command) return;
+    btn.disabled = !commandEnabled(command, v);
+    const active =
+      (command === "hold" && v.mode === "hold") ||
+      (command === "mission" && v.mode === "mission") ||
+      (command === "rtl" && v.mode === "rtl") ||
+      (command === "land" && v.mode === "land") ||
+      (command === "arm" && v.armed);
+    btn.classList.toggle("is-active", active);
+    btn.setAttribute("aria-pressed", active ? "true" : "false");
+  });
 }
 
 function renderActiveLinkRail(): void {
@@ -1569,6 +1840,8 @@ function refreshTransportStatusFromActive(): void {
   transportStatus.textContent = on ? t("state.connected") : t("state.disconnected");
   transportStatus.classList.toggle("state--ok", on);
   transportStatus.classList.toggle("state--off", !on);
+  const disconnect = $<HTMLButtonElement>("[data-action='settings-disconnect']");
+  if (disconnect) disconnect.disabled = Boolean(v?.armed);
 }
 
 function refreshLedger(): void {
@@ -1721,7 +1994,13 @@ function calCapture(): void {
     return;
   }
   state.calCaptured[step] = cap + 1;
-  pushLog("info", "log.tag.cal", "log.msg.cal_capture", cap + 1, step);
+  sendBridge({
+    type: "calibration",
+    id: activeVehicle().id,
+    step,
+    capture: cap + 1,
+    done: state.calCaptured[step] >= max,
+  });
   if (state.calCaptured[step] >= max && step < 4) {
     setCalStep(step + 1);
   } else {
@@ -1732,7 +2011,7 @@ function calCapture(): void {
 // ---------- 11. Mission ----------
 
 interface Waypoint {
-  type: "wp.takeoff" | "wp.waypt" | "wp.land";
+  type: WaypointType;
   lat: number;
   lon: number;
   alt: number;
@@ -1744,19 +2023,263 @@ const waypoints: Waypoint[] = [
   { type: "wp.land",    lat: 24.7918, lon: 121.0201, alt: 0 },
 ];
 
+let missionPlanDirty = true;
+
+const missionBounds = {
+  latMin: 24.7825,
+  latMax: 24.7930,
+  lonMin: 121.0040,
+  lonMax: 121.0215,
+};
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
+}
+
+function waypointToServer(wp: Waypoint): ServerMissionWaypoint {
+  return {
+    type: wp.type === "wp.takeoff" ? "takeoff" : wp.type === "wp.land" ? "land" : "waypoint",
+    lat: wp.lat,
+    lon: wp.lon,
+    alt: wp.alt,
+  };
+}
+
+function waypointToPlate(wp: Waypoint): { x: number; y: number } {
+  const x = ((wp.lon - missionBounds.lonMin) / (missionBounds.lonMax - missionBounds.lonMin)) * 100;
+  const y = 100 - ((wp.lat - missionBounds.latMin) / (missionBounds.latMax - missionBounds.latMin)) * 100;
+  return { x: clamp(x, 8, 92), y: clamp(y, 8, 92) };
+}
+
+function waypointFromPlate(xPct: number, yPct: number): Waypoint {
+  const lon = missionBounds.lonMin + (clamp(xPct, 0, 100) / 100) * (missionBounds.lonMax - missionBounds.lonMin);
+  const lat = missionBounds.latMin + ((100 - clamp(yPct, 0, 100)) / 100) * (missionBounds.latMax - missionBounds.latMin);
+  return { type: "wp.waypt", lat, lon, alt: 30 };
+}
+
+function haversineMeters(a: Waypoint, b: Waypoint): number {
+  const r = 6371000;
+  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
+  const dLon = ((b.lon - a.lon) * Math.PI) / 180;
+  const lat1 = (a.lat * Math.PI) / 180;
+  const lat2 = (b.lat * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * r * Math.atan2(Math.sqrt(s), Math.sqrt(1 - s));
+}
+
+function missionDistanceMeters(): number {
+  let d = 0;
+  for (let i = 1; i < waypoints.length; i++) d += haversineMeters(waypoints[i - 1]!, waypoints[i]!);
+  return d;
+}
+
+function missionCumulativeMeters(): number[] {
+  const distances: number[] = [0];
+  for (let i = 1; i < waypoints.length; i++) {
+    distances.push((distances[i - 1] ?? 0) + haversineMeters(waypoints[i - 1]!, waypoints[i]!));
+  }
+  return distances;
+}
+
+function terrainMsl(lat: number, lon: number): number {
+  // Temporary local terrain estimate until real DEM tiles are wired in.
+  const ridge = Math.sin((lat - 24.782) * 820) * 11;
+  const valley = Math.cos((lon - 121.004) * 760) * 8;
+  const slope = (lat - 24.786) * 900;
+  return Math.max(12, 54 + ridge + valley + slope);
+}
+
+function bearingDeg(from: { lat: number; lon: number }, to: { lat: number; lon: number }): number {
+  const phi1 = (from.lat * Math.PI) / 180;
+  const phi2 = (to.lat * Math.PI) / 180;
+  const lambda1 = (from.lon * Math.PI) / 180;
+  const lambda2 = (to.lon * Math.PI) / 180;
+  const y = Math.sin(lambda2 - lambda1) * Math.cos(phi2);
+  const x = Math.cos(phi1) * Math.sin(phi2) -
+    Math.sin(phi1) * Math.cos(phi2) * Math.cos(lambda2 - lambda1);
+  return (((Math.atan2(y, x) * 180) / Math.PI) + 360) % 360;
+}
+
+function offsetLatLon(lat: number, lon: number, northMeters: number, eastMeters: number): { lat: number; lon: number } {
+  return {
+    lat: lat + northMeters / 111111,
+    lon: lon + eastMeters / (111111 * Math.cos((lat * Math.PI) / 180)),
+  };
+}
+
+function currentRouteDistanceMeters(v: Vehicle): number {
+  const cumulative = missionCumulativeMeters();
+  if (waypoints.length < 2) return 0;
+
+  const refLat = v.lat;
+  const cosRef = Math.cos((refLat * Math.PI) / 180);
+  const toXY = (p: { lat: number; lon: number }) => ({
+    x: (p.lon - v.lon) * 111111 * cosRef,
+    y: (p.lat - v.lat) * 111111,
+  });
+  let bestDistance = 0;
+  let bestError = Number.POSITIVE_INFINITY;
+  for (let i = 1; i < waypoints.length; i++) {
+    const a = toXY(waypoints[i - 1]!);
+    const b = toXY(waypoints[i]!);
+    const abx = b.x - a.x;
+    const aby = b.y - a.y;
+    const ab2 = abx * abx + aby * aby;
+    if (ab2 <= 0) continue;
+    const tProj = clamp(((-a.x * abx) + (-a.y * aby)) / ab2, 0, 1);
+    const px = a.x + abx * tProj;
+    const py = a.y + aby * tProj;
+    const err = px * px + py * py;
+    if (err < bestError) {
+      bestError = err;
+      const segmentMeters = haversineMeters(waypoints[i - 1]!, waypoints[i]!);
+      bestDistance = (cumulative[i - 1] ?? 0) + segmentMeters * tProj;
+    }
+  }
+  return bestDistance;
+}
+
+function renderAltitudeProfile(): void {
+  const v = activeVehicle();
+  const plan = document.querySelector<SVGPolylineElement>("[data-profile-plan]");
+  const terrain = document.querySelector<SVGPolygonElement>("[data-profile-terrain]");
+  const current = document.querySelector<SVGCircleElement>("[data-profile-current]");
+  if (!plan || !terrain || !current) return;
+
+  if (waypoints.length === 0) {
+    plan.setAttribute("points", "");
+    terrain.setAttribute("points", "0,100 100,100");
+    current.setAttribute("cx", "0");
+    current.setAttribute("cy", "95");
+    setText("[data-profile='dist']", "0.00 km");
+    setText("[data-profile='alt-min']", "—");
+    setText("[data-profile='alt-max']", "—");
+    setText("[data-profile='clearance']", "—");
+    return;
+  }
+
+  const cumulative = missionCumulativeMeters();
+  const total = Math.max(1, cumulative[cumulative.length - 1] ?? 1);
+  const terrainElev = waypoints.map((wp) => terrainMsl(wp.lat, wp.lon));
+  const planElev = waypoints.map((wp, i) => terrainElev[i]! + wp.alt);
+  const liveTerrain = terrainMsl(v.lat, v.lon);
+  const liveElev = liveTerrain + v.altitude;
+  const minElev = Math.min(...terrainElev, liveTerrain) - 8;
+  const maxElev = Math.max(...planElev, liveElev) + 12;
+  const span = Math.max(1, maxElev - minElev);
+  const xAt = (i: number) => ((cumulative[i] ?? 0) / total) * 100;
+  const yAt = (elev: number) => clamp(92 - ((elev - minElev) / span) * 78, 8, 92);
+
+  const terrainPoints = terrainElev.map((elev, i) => `${xAt(i).toFixed(1)},${yAt(elev).toFixed(1)}`).join(" ");
+  const planPoints = planElev.map((elev, i) => `${xAt(i).toFixed(1)},${yAt(elev).toFixed(1)}`).join(" ");
+  const liveX = clamp((currentRouteDistanceMeters(v) / total) * 100, 0, 100);
+
+  terrain.setAttribute("points", `0,100 ${terrainPoints} 100,100`);
+  plan.setAttribute("points", planPoints);
+  current.setAttribute("cx", liveX.toFixed(1));
+  current.setAttribute("cy", yAt(liveElev).toFixed(1));
+
+  setText("[data-profile='dist']", `${(total / 1000).toFixed(2)} km`);
+  setText("[data-profile='alt-min']", `${Math.round(Math.min(...planElev))} m`);
+  setText("[data-profile='alt-max']", `${Math.round(Math.max(...planElev))} m`);
+  setText("[data-profile='clearance']", v.flight ? `${Math.round(v.altitude)} m` : "—");
+}
+
+function renderTerrainRelative(): void {
+  const v = activeVehicle();
+  const ground = terrainMsl(v.lat, v.lon);
+  const msl = ground + (v.flight ? v.altitude : 0);
+  const activeIndex = v.missionActiveIndex ?? 0;
+  const targetIndex = waypoints.length > 1
+    ? Math.min(activeIndex + 1, waypoints.length - 1)
+    : 0;
+  const target = waypoints[targetIndex];
+  const bearing = target ? bearingDeg(v, target) : v.heading;
+  const rad = (bearing * Math.PI) / 180;
+  const samples = Array.from({ length: 17 }, (_, i) => -240 + i * 30);
+  const elevations = samples.map((meters) => {
+    const p = offsetLatLon(
+      v.lat,
+      v.lon,
+      Math.cos(rad) * meters,
+      Math.sin(rad) * meters,
+    );
+    return terrainMsl(p.lat, p.lon);
+  });
+  const minElev = Math.min(...elevations, ground) - 8;
+  const maxElev = Math.max(...elevations, msl) + 16;
+  const span = Math.max(1, maxElev - minElev);
+  const yAt = (elev: number) => clamp(92 - ((elev - minElev) / span) * 78, 8, 92);
+  const terrainPoints = elevations.map((elev, i) => {
+    const x = (i / (elevations.length - 1)) * 100;
+    return `${x.toFixed(1)},${yAt(elev).toFixed(1)}`;
+  }).join(" ");
+  const groundY = yAt(ground);
+  const dotY = yAt(msl);
+  const terrainPath = document.querySelector<SVGPathElement>("[data-terrain-cross-section]");
+  const line = document.querySelector<SVGLineElement>("[data-terrain-bearing-line]");
+  const altitudeLine = document.querySelector<SVGLineElement>("[data-terrain-altitude-line]");
+  const groundDot = document.querySelector<SVGCircleElement>("[data-terrain-ground-dot]");
+  const ring = document.querySelector<SVGCircleElement>("[data-terrain-ring]");
+  const dot = document.querySelector<SVGCircleElement>("[data-terrain-dot]");
+  if (terrainPath) terrainPath.setAttribute("d", `M0,100 L${terrainPoints} L100,100 Z`);
+  if (line) {
+    line.setAttribute("x1", "50");
+    line.setAttribute("y1", dotY.toFixed(1));
+    line.setAttribute("x2", "92");
+    line.setAttribute("y2", dotY.toFixed(1));
+  }
+  if (altitudeLine) {
+    altitudeLine.setAttribute("x1", "50");
+    altitudeLine.setAttribute("x2", "50");
+    altitudeLine.setAttribute("y1", dotY.toFixed(1));
+    altitudeLine.setAttribute("y2", groundY.toFixed(1));
+  }
+  if (groundDot) groundDot.setAttribute("cy", groundY.toFixed(1));
+  if (ring) {
+    ring.setAttribute("cx", "50");
+    ring.setAttribute("cy", dotY.toFixed(1));
+  }
+  if (dot) {
+    dot.setAttribute("cx", "50");
+    dot.setAttribute("cy", dotY.toFixed(1));
+  }
+  setText("[data-terrain='msl']", v.flight ? `${Math.round(msl)} m` : "—");
+  setText("[data-terrain='agl']", v.flight ? `${Math.round(v.altitude)} m` : "—");
+  setText("[data-terrain='ground']", `${Math.round(ground)} m`);
+  setText("[data-terrain='bearing']", target ? `${pad3(bearing)}°` : "—");
+}
+
+function markMissionDirty(): void {
+  missionPlanDirty = true;
+  renderCommandControls();
+}
+
 function renderWaypointTable(): void {
   const tbody = $<HTMLTableSectionElement>(".wp-table tbody");
   if (!tbody) return;
   tbody.innerHTML = "";
+  const activeMissionIndex = activeVehicle().missionActiveIndex;
   for (let i = 0; i < waypoints.length; i++) {
     const wp = waypoints[i]!;
     const tr = document.createElement("tr");
+    tr.dataset["wpIndex"] = String(i);
+    tr.classList.toggle("is-active", activeMissionIndex === i);
     tr.innerHTML = `
       <td>${(i + 1).toString().padStart(2, "0")}</td>
-      <td>${escapeHtml(t(wp.type))}</td>
-      <td>${wp.lat.toFixed(4)}</td>
-      <td>${wp.lon.toFixed(4)}</td>
-      <td>${wp.alt} m</td>
+      <td>
+        <select class="wp-field" data-wp-field="type" aria-label="Waypoint type">
+          ${(["wp.takeoff", "wp.waypt", "wp.land"] as WaypointType[]).map((type) =>
+            `<option value="${type}" ${type === wp.type ? "selected" : ""}>${escapeHtml(t(type))}</option>`
+          ).join("")}
+        </select>
+      </td>
+      <td><input class="wp-field" data-wp-field="lat" type="number" step="0.000001" value="${wp.lat.toFixed(6)}"></td>
+      <td><input class="wp-field" data-wp-field="lon" type="number" step="0.000001" value="${wp.lon.toFixed(6)}"></td>
+      <td><input class="wp-field wp-field--alt" data-wp-field="alt" type="number" step="1" min="0" value="${wp.alt}"><span class="wp-unit">m</span></td>
+      <td><button class="wp-delete" type="button" data-wp-delete="${i}" aria-label="Delete waypoint">×</button></td>
     `;
     tbody.appendChild(tr);
   }
@@ -1764,25 +2287,145 @@ function renderWaypointTable(): void {
   if (summary) summary.textContent = t("mission.summary", waypoints.length, 0);
   const planned = $<HTMLElement>("[data-mission='planned']");
   if (planned) planned.textContent = t("mission.planned", waypoints.length);
+  renderMissionPlate();
+  renderAltitudeProfile();
+  renderTerrainRelative();
 }
 
 function newWaypoint(): void {
-  const last = waypoints[waypoints.length - 1];
-  const lat = last ? last.lat + 0.001 : 24.7867;
-  const lon = last ? last.lon + 0.001 : 121.0089;
-  waypoints.push({ type: "wp.waypt", lat, lon, alt: 30 });
+  const landAtEnd = waypoints[waypoints.length - 1]?.type === "wp.land";
+  const insertAt = landAtEnd ? Math.max(0, waypoints.length - 1) : waypoints.length;
+  const last = waypoints[insertAt - 1] ?? waypoints[waypoints.length - 1] ?? activeVehicle();
+  const lat = "lat" in last ? last.lat + 0.001 : 24.7867;
+  const lon = "lon" in last ? last.lon + 0.001 : 121.0089;
+  waypoints.splice(insertAt, 0, { type: "wp.waypt", lat, lon, alt: 30 });
+  markMissionDirty();
   renderWaypointTable();
-  pushLog("info", "log.tag.model", "log.msg.plan_new", waypoints.length);
+  pushLog("info", "log.tag.model", "log.msg.plan_new", insertAt + 1);
 }
 
 function clearWaypoints(): void {
   waypoints.length = 0;
+  markMissionDirty();
   renderWaypointTable();
   pushLog("warn", "log.tag.model", "log.msg.plan_clear");
 }
 
 function uploadPlan(): void {
-  pushLog("info", "log.tag.link", "log.msg.plan_upload", waypoints.length);
+  const v = activeVehicle();
+  if (waypoints.length === 0) {
+    pushLog("warn", "log.tag.cmd", "log.msg.command_rejected_no_plan", v.callsign);
+    return;
+  }
+  if (sendBridge({ type: "uploadPlan", id: v.id, waypoints: waypoints.map(waypointToServer) })) {
+    missionPlanDirty = false;
+    renderCommandControls();
+  }
+}
+
+function downloadPlan(): void {
+  const payload = {
+    vehicle: activeVehicle().callsign,
+    generatedAt: new Date().toISOString(),
+    waypoints: waypoints.map(waypointToServer),
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `airyn-plan-${activeVehicle().callsign.toLowerCase()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  pushLog("info", "log.tag.model", "log.msg.plan_download", waypoints.length);
+}
+
+function renderMissionPlate(): void {
+  const points = waypoints.map(waypointToPlate);
+  const activeMissionIndex = activeVehicle().missionActiveIndex;
+  const path = document.querySelector<SVGPolylineElement>("[data-mission-path]");
+  if (path) path.setAttribute("points", points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" "));
+
+  const plate = $<HTMLElement>(".plate--mission");
+  if (plate) {
+    plate.querySelectorAll(".wp").forEach((el) => el.remove());
+    points.forEach((p, i) => {
+      const marker = document.createElement("button");
+      marker.type = "button";
+      marker.className = "wp";
+      marker.classList.toggle("is-active", activeMissionIndex === i);
+      marker.dataset["wpIndex"] = String(i);
+      marker.style.left = `${p.x}%`;
+      marker.style.top = `${p.y}%`;
+      marker.innerHTML = `<em>${(i + 1).toString().padStart(2, "0")}</em>`;
+      plate.appendChild(marker);
+    });
+  }
+
+  const distance = missionDistanceMeters();
+  const alts = waypoints.map((wp) => wp.alt);
+  setText("[data-mission='dist']", `${(distance / 1000).toFixed(2)} km`);
+  setText("[data-mission='eta']", waypoints.length > 1 ? `${Math.max(1, Math.ceil(distance / 8 / 60))} min` : "—");
+  setText("[data-mission='alt-min']", alts.length ? `${Math.min(...alts)} m` : "—");
+  setText("[data-mission='alt-max']", alts.length ? `${Math.max(...alts)} m` : "—");
+  renderAltitudeProfile();
+  renderTerrainRelative();
+}
+
+function renderMissionActiveState(): void {
+  const activeMissionIndex = activeVehicle().missionActiveIndex;
+  $$<HTMLElement>("[data-wp-index]").forEach((el) => {
+    el.classList.toggle("is-active", el.dataset["wpIndex"] === String(activeMissionIndex));
+  });
+}
+
+function handleWaypointTableInput(target: EventTarget | null): void {
+  if (!(target instanceof HTMLInputElement || target instanceof HTMLSelectElement)) return;
+  const row = target.closest<HTMLTableRowElement>("tr[data-wp-index]");
+  const field = target.dataset["wpField"];
+  if (!row || !field) return;
+  const index = Number(row.dataset["wpIndex"]);
+  const wp = waypoints[index];
+  if (!wp) return;
+
+  if (field === "type") {
+    wp.type = target.value as WaypointType;
+  } else {
+    const parsed = Number(target.value);
+    if (!Number.isFinite(parsed)) return;
+    if (field === "lat") wp.lat = clamp(parsed, -90, 90);
+    if (field === "lon") wp.lon = clamp(parsed, -180, 180);
+    if (field === "alt") wp.alt = clamp(Math.round(parsed), 0, 500);
+  }
+  markMissionDirty();
+  renderMissionPlate();
+  pushLog("info", "log.tag.model", "log.msg.plan_update", index + 1);
+}
+
+function handleWaypointDelete(target: EventTarget | null): void {
+  if (!(target instanceof HTMLElement)) return;
+  const btn = target.closest<HTMLButtonElement>("[data-wp-delete]");
+  if (!btn) return;
+  const index = Number(btn.dataset["wpDelete"]);
+  if (!Number.isInteger(index) || !waypoints[index]) return;
+  waypoints.splice(index, 1);
+  markMissionDirty();
+  renderWaypointTable();
+  pushLog("warn", "log.tag.model", "log.msg.plan_delete", index + 1);
+}
+
+function addWaypointFromMissionPlate(ev: MouseEvent): void {
+  if (ev.target instanceof HTMLElement && ev.target.closest(".wp")) return;
+  const plate = $<HTMLElement>(".plate--mission");
+  if (!plate) return;
+  const rect = plate.getBoundingClientRect();
+  const xPct = ((ev.clientX - rect.left) / rect.width) * 100;
+  const yPct = ((ev.clientY - rect.top) / rect.height) * 100;
+  const landAtEnd = waypoints[waypoints.length - 1]?.type === "wp.land";
+  const insertAt = landAtEnd ? Math.max(0, waypoints.length - 1) : waypoints.length;
+  waypoints.splice(insertAt, 0, waypointFromPlate(xPct, yPct));
+  markMissionDirty();
+  renderWaypointTable();
+  pushLog("info", "log.tag.model", "log.msg.plan_new", insertAt + 1);
 }
 
 // ---------- 12. Settings + lang ----------
@@ -1796,6 +2439,8 @@ function setLang(lang: Lang): void {
   renderActiveLinkRail();
   renderLinkPath();
   renderConnectButton();
+  renderFlightModeRail();
+  renderCommandControls();
   refreshLedger();
   renderCalPrompt();
   renderWaypointTable();
@@ -1881,6 +2526,22 @@ function bind(): void {
   $<HTMLElement>("[data-action='wp-new']")?.addEventListener("click", newWaypoint);
   $<HTMLElement>("[data-action='wp-clear']")?.addEventListener("click", clearWaypoints);
   $<HTMLElement>("[data-action='wp-upload']")?.addEventListener("click", uploadPlan);
+  $<HTMLElement>("[data-action='wp-download']")?.addEventListener("click", downloadPlan);
+  $<HTMLElement>(".plate--mission")?.addEventListener("click", addWaypointFromMissionPlate);
+  $<HTMLTableSectionElement>(".wp-table tbody")?.addEventListener("change", (ev) => {
+    handleWaypointTableInput(ev.target);
+  });
+  $<HTMLTableSectionElement>(".wp-table tbody")?.addEventListener("click", (ev) => {
+    handleWaypointDelete(ev.target);
+  });
+
+  // Flight command buttons
+  $$<HTMLButtonElement>("[data-command]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const command = btn.dataset["command"] as VehicleCommand | undefined;
+      if (command) sendVehicleCommand(command);
+    });
+  });
 
   // Settings transport radios
   $$<HTMLLabelElement>(".radio[data-transport]").forEach((r) => {
@@ -1898,6 +2559,26 @@ function bind(): void {
       console.log("[airyn] lang-toggle click", { clicked: l, current: state.lang });
       if (l && l !== state.lang) setLang(l);
     });
+  });
+
+  window.addEventListener("keydown", (ev) => {
+    const target = ev.target;
+    if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) {
+      return;
+    }
+    if (ev.key.toLowerCase() === "n") {
+      ev.preventDefault();
+      newWaypoint();
+    } else if (ev.ctrlKey && ev.key.toLowerCase() === "u") {
+      ev.preventDefault();
+      uploadPlan();
+    } else if (ev.ctrlKey && ev.key.toLowerCase() === "d") {
+      ev.preventDefault();
+      downloadPlan();
+    } else if (ev.key === " ") {
+      ev.preventDefault();
+      calCapture();
+    }
   });
 }
 
@@ -1927,6 +2608,8 @@ function init(): void {
   renderLinkPath();
   renderActiveLinkRail();
   renderConnectButton();
+  renderFlightModeRail();
+  renderCommandControls();
 
   // Open WebSocket to ground/src/bun simulator/bridge.
   connectBridge();

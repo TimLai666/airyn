@@ -14,14 +14,14 @@ models/<tier>/<model>/model.toml
 
 ## Current Status
 
-- Monorepo skeleton exists with independent `flight/`, placeholder `mission/`, `ground/`, `shared/`, `sim/`, `tools/`, and `examples/`.
+- Monorepo skeleton exists with independent `flight/`, `mission/`, `ground/`, `shared/`, `sim/`, `tools/`, and `examples/`. `ground/` now has an Electrobun/Bun app with a local bridge and operator workflows; `mission/` remains minimal.
 - MadFlight is included as `flight/vendor/madflight` submodule pinned to `v2.3.0`.
 - `models/` is split into `dev/`, `stable/`, `experimental/` tiers. `models/dev/testbench/model.toml` is the default development model.
 - Board pinouts live under `boards/`; `boards/pico2_breadboard_dev.toml` is the current development board. Models reference a board via `target_board`, and the board file is merged into the model at load time.
 - PlatformIO pre-build generates `flight/build/generated/active_model_config.h` from TOML. This generated header is the only entry point for model and board values into firmware.
 - MadFlight access is contained behind adapters in `flight/src/devices/` (`receiver`, `motor_output`, `imu_adapter`); the flight app no longer reads `ahr`/`imu` globals directly.
 - Firmware has an integrated first-pass rate-mode flight loop: receiver normalization, arming/failsafe, PID, Quad X mixer, motor output, and serial debug. It still needs PlatformIO compilation and no-prop hardware verification.
-- Operating modes (Direct vs Mission) are documented in `docs/operating-modes.md`; only Direct mode is wired today.
+- Operating modes (Direct vs Mission) are documented in `docs/operating-modes.md`. Ground now has a local WebSocket bridge and simulator that exercise direct and mission-shaped link paths, flight commands, mission upload, calibration events, fleet telemetry, GPS loss, and link-loss prediction. Real serial/UDP/Mission transports are still pending.
 
 ## Progress Tracker
 
@@ -39,6 +39,7 @@ models/<tier>/<model>/model.toml
 | 10. Tests | Partial | Added Python config/profile tests covering tiered model lookup. Still need mixer and safety tests with a C++ host or PlatformIO test setup. |
 | 11. Bring-up docs | Partial | `docs/new-model-bringup.md`, `docs/board-config.md`, and `docs/operating-modes.md` reflect the tiered model + board layout. Keep updated as hardware flow evolves. |
 | 12. Model tiers and boards | Done | `models/{dev,stable,experimental}/` tiers in place, `boards/<target_board>.toml` separated from model, `freeze_model.py`/`edit_model.py` updated for the tiered workflow, `check_config.py` validates the board reference. |
+| 13. Ground control | Partial | Electrobun/Bun ground app now has a real local bridge protocol beyond connect/disconnect: arm/disarm, hold, mission start, RTL, land, motor cut, mission upload/export/editing, calibration events, fleet telemetry, GPS/link-loss simulation, visibly actionable controls, armed-state disconnect lockout, a full-window combined primary workspace, fixed non-scrolling flight commands, stable telemetry readouts, mission altitude profile with route-projected live position, and an estimated terrain-relative aircraft view with aligned terrain, ground, aircraft, and clearance markers. Needs real serial/UDP transport, real DEM terrain data, persisted mission library, hardware calibration command mapping, and replay/log storage. |
 
 Update this table whenever implementation progress changes.
 
@@ -389,6 +390,44 @@ Checklist:
 Done when:
 
 - A new model can be added without source-code edits.
+
+## Phase 13: Ground Control Usable Workflows
+
+Goal: Ground should be simpler than a typical drone GCS without becoming a static dashboard.
+
+Tasks:
+
+- Keep the Electrobun/Bun boundary clean; Ground must not depend on `flight/` internals.
+- Maintain a bridge protocol for renderer-to-Bun actions, not ad-hoc front-end-only state.
+- Support operator-critical commands:
+  - connect / disconnect
+  - arm / disarm
+  - hold
+  - start mission
+  - RTL
+  - land
+  - emergency motor stop
+- Make command availability explicit from connection, link health, preflight, armed, and mission-upload state.
+- Make mission planning editable:
+  - add waypoint
+  - click plan plate to add waypoint
+  - edit type / lat / lon / altitude
+  - delete waypoint
+  - upload plan to the bridge
+  - export plan JSON
+- Send calibration captures to the bridge instead of keeping them as UI-only actions.
+- Keep clickable controls visually obvious with hover/focus/disabled/active states.
+- Make the combined operator page the default workspace and avoid requiring a separate map-only view for normal flight.
+- Show altitude-over-route and terrain-relative aircraft position. The first version may use a local estimate; production should use real DEM terrain data.
+- Add real transports:
+  - serial direct-to-flight
+  - UDP direct-to-flight
+  - WebSocket/TCP via Mission
+- Add persisted logs, mission library, and replay after the basic transport is working.
+
+Done when:
+
+- A user can connect to a vehicle, verify preflight state, upload a plan, arm, run/hold/RTL/land/disarm, calibrate, and inspect logs through real transport-backed actions.
 
 ## First Flyable Scope
 

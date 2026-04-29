@@ -7,11 +7,13 @@ import { BRIDGE_PORT } from "../shared/protocol";
 // the first try.
 startBridge(BRIDGE_PORT);
 
-// Open at 92 % of the primary display's work area, centered. The work
+// Open near full work area because the ground station is an operations
+// surface: map, controls, and telemetry must all be visible immediately.
+// The work
 // area excludes the Windows taskbar, so the window lands neatly without
 // overlap. Falls back to a sane fixed default if the Screen probe fails.
-const FALLBACK = { width: 1400, height: 900 };
-const COVERAGE = 0.92;
+const FALLBACK = { width: 1600, height: 920 };
+const COVERAGE = 0.98;
 
 function computeFrame(): { x: number; y: number; width: number; height: number } {
   try {

@@ -14,11 +14,15 @@
  */
 
 import type {
+  MissionWaypoint,
   ServerMessage,
+  SafetyState,
   VehicleConfig,
+  VehicleCommand,
   VehicleFrame,
   VehicleColor,
   VehicleLink,
+  VehicleMode,
 } from "../shared/protocol";
 
 const SIM_DT = 0.1; // 10 Hz
@@ -41,6 +45,10 @@ interface SimVehicle {
   gpsSats: number;
   gpsHdop: number;
   insActive: boolean;
+  mode: VehicleMode;
+  safetyState: SafetyState;
+  missionPlan: MissionWaypoint[];
+  missionActiveIndex: number | null;
   roll: number; pitch: number; yaw: number;
   thr: number; vbat: number; armed: boolean;
   gyroX: number; gyroY: number; gyroZ: number;
@@ -72,6 +80,10 @@ function makeVehicle(
     gpsSats: 0,
     gpsHdop: 99,
     insActive: false,
+    mode: "standby",
+    safetyState: "offline",
+    missionPlan: [],
+    missionActiveIndex: null,
     roll: 0, pitch: 0, yaw: heading,
     thr: 0, vbat: 0, armed: false,
     gyroX: 0, gyroY: 0, gyroZ: 0,
@@ -129,6 +141,21 @@ function vehicleHash(id: string): number {
   return h;
 }
 
+function preflightOk(v: SimVehicle): boolean {
+  return v.flight && v.linkActive && v.gpsActive && v.gpsSats >= 6 && v.vbat >= 18.5;
+}
+
+function resetFlightDynamics(v: SimVehicle): void {
+  v.speed = 0;
+  v.thr = 0;
+  v.roll = 0;
+  v.pitch = 0;
+  v.altitude = Math.max(0, v.altitude);
+  v.baroAlt = v.altitude;
+  v.baroVs = 0;
+  v.batI = 0;
+}
+
 function tickVehicle(v: SimVehicle): void {
   if (!v.flight) return;
 
@@ -147,10 +174,17 @@ function tickVehicle(v: SimVehicle): void {
   if (wasLinkActive && !linkActive) {
     // Snapshot what the renderer last knew so we can keep echoing it.
     v.frozenFrame = liveFrame(v);
+    if (v.armed) {
+      v.safetyState = "failsafe";
+      v.mode = "hold";
+    }
     pushLog("err", "log.tag.link", "log.msg.link_lost", v.callsign,
       v.lat.toFixed(5), v.lon.toFixed(5));
   } else if (!wasLinkActive && linkActive) {
     v.frozenFrame = null;
+    if (v.armed && v.safetyState === "failsafe") {
+      v.safetyState = "armed";
+    }
     pushLog("info", "log.tag.link", "log.msg.link_resume", v.callsign);
   }
 
@@ -168,23 +202,6 @@ function tickVehicle(v: SimVehicle): void {
     pushLog("info", "log.tag.gps", "log.msg.gps_resume", v.callsign);
   }
 
-  // Move along heading at v.speed (m/s)
-  const headRad = (v.heading * Math.PI) / 180;
-  const dlat = (v.speed * SIM_DT * Math.cos(headRad)) / 111111;
-  const dlon = (v.speed * SIM_DT * Math.sin(headRad)) / (111111 * Math.cos((v.lat * Math.PI) / 180));
-  v.lat += dlat;
-  v.lon += dlon;
-
-  // Slight curve so trajectory isn't a straight line
-  const curveDeg = 3 + (hash % 6);
-  v.heading = (((v.heading + SIM_DT * curveDeg) % 360) + 360) % 360;
-
-  v.altitude = 45 + Math.sin(simTime * 0.2) * 2;
-  v.baroAlt = v.altitude + jitter(0, 0.3);
-  v.baroVs = jitter(0, 0.4);
-  v.baroP = jitter(1013.2, 0.4);
-  v.baroT = 24.5 + jitter(0, 0.1);
-
   if (gpsActive) {
     if (v.gpsSats < 14) v.gpsSats = Math.min(14, v.gpsSats + 1);
     v.gpsHdop = jitter(0.7, 0.05);
@@ -193,17 +210,71 @@ function tickVehicle(v: SimVehicle): void {
     v.gpsHdop = 99;
   }
 
-  v.roll = jitter(0, 0.6);
-  v.pitch = jitter(0, 0.6);
+  v.vbat = Math.max(15, v.vbat > 0 ? v.vbat - SIM_DT * (v.armed ? 0.002 : 0.0002) : 22.4);
+  v.baroP = jitter(1013.2, 0.4);
+  v.baroT = 24.5 + jitter(0, 0.1);
+
+  if (!v.armed) {
+    v.mode = "standby";
+    v.safetyState = v.linkActive ? "preflight" : "offline";
+    resetFlightDynamics(v);
+  } else {
+    const desiredSpeed =
+      v.mode === "mission" ? 8 :
+      v.mode === "rtl" ? 7 :
+      v.mode === "land" ? 3 :
+      v.mode === "manual" ? 2 :
+      0;
+    v.speed += (desiredSpeed - v.speed) * 0.12;
+
+    if (v.mode === "mission" || v.mode === "rtl" || v.mode === "manual") {
+      const targetAlt = v.mode === "manual" ? Math.max(3, v.altitude) : 45 + Math.sin(simTime * 0.2) * 2;
+      v.altitude += (targetAlt - v.altitude) * 0.06;
+    } else if (v.mode === "land") {
+      v.altitude = Math.max(0, v.altitude - SIM_DT * 1.4);
+      if (v.altitude <= 0.2) {
+        v.armed = false;
+        v.mode = "standby";
+        v.safetyState = v.linkActive ? "preflight" : "offline";
+        pushLog("info", "log.tag.cmd", "log.msg.auto_disarmed", v.callsign);
+      }
+    }
+
+    if (!v.armed) {
+      resetFlightDynamics(v);
+    } else {
+      if (v.mode !== "hold") {
+        const headRad = (v.heading * Math.PI) / 180;
+        const dlat = (v.speed * SIM_DT * Math.cos(headRad)) / 111111;
+        const dlon = (v.speed * SIM_DT * Math.sin(headRad)) / (111111 * Math.cos((v.lat * Math.PI) / 180));
+        v.lat += dlat;
+        v.lon += dlon;
+        const curveDeg = v.mode === "rtl" ? -10 : 3 + (hash % 6);
+        v.heading = (((v.heading + SIM_DT * curveDeg) % 360) + 360) % 360;
+      }
+
+      v.safetyState = v.safetyState === "failsafe" ? "failsafe" : "armed";
+      v.thr = Math.max(5, Math.floor((v.mode === "hold" ? 18 : v.mode === "land" ? 22 : 35) + jitter(0, 6)));
+      v.roll = jitter(0, v.mode === "hold" ? 0.3 : 0.6);
+      v.pitch = jitter(0, v.mode === "hold" ? 0.3 : 0.6);
+      v.baroAlt = v.altitude + jitter(0, 0.3);
+      v.baroVs = v.mode === "land" ? -1.4 + jitter(0, 0.1) : jitter(0, 0.4);
+      v.batI = jitter(v.mode === "hold" ? 5.2 : 8.4, 0.6);
+      v.batUsed += (v.batI * SIM_DT) / 3.6;
+
+      if (v.mode === "mission" && v.missionPlan.length > 0) {
+        const progress = Math.floor((simTime / 5) % v.missionPlan.length);
+        v.missionActiveIndex = progress;
+      } else if (v.mode !== "mission") {
+        v.missionActiveIndex = null;
+      }
+    }
+  }
+
   v.yaw = v.heading;
-  v.thr = Math.max(0, 35 + Math.floor(jitter(0, 6)));
-  v.vbat = Math.max(15, 22.4 - simTime * 0.0006);
-  v.armed = true;
 
   v.gyroX = jitter(0, 0.4); v.gyroY = jitter(0, 0.4); v.gyroZ = jitter(0, 0.4);
   v.accelX = jitter(0, 0.04); v.accelY = jitter(0, 0.04); v.accelZ = 1.0 + jitter(0, 0.02);
-  v.batI = jitter(8.4, 0.6);
-  v.batUsed += (v.batI * SIM_DT) / 3.6;
 }
 
 function liveFrame(v: SimVehicle): VehicleFrame {
@@ -215,6 +286,12 @@ function liveFrame(v: SimVehicle): VehicleFrame {
     altitude: v.altitude, speed: v.speed, heading: v.heading,
     gpsActive: v.gpsActive, gpsSats: v.gpsSats, gpsHdop: v.gpsHdop,
     insActive: v.insActive,
+    mode: v.mode,
+    safetyState: v.safetyState,
+    preflightOk: preflightOk(v),
+    missionUploaded: v.missionPlan.length > 0,
+    missionCount: v.missionPlan.length,
+    missionActiveIndex: v.missionActiveIndex,
     roll: v.roll, pitch: v.pitch, yaw: v.yaw,
     thr: v.thr, vbat: v.vbat, armed: v.armed,
     gyroX: v.gyroX, gyroY: v.gyroY, gyroZ: v.gyroZ,
@@ -295,6 +372,13 @@ export function startVehicle(id: string): void {
   v.gpsSats = 8;
   v.gpsHdop = 0.8;
   v.insActive = false;
+  v.mode = "standby";
+  v.safetyState = "preflight";
+  v.armed = false;
+  v.altitude = 0;
+  v.speed = 0;
+  v.thr = 0;
+  v.vbat = 22.4;
   v.batUsed = 0;
   v.linkActive = true;
   v.frozenFrame = null;
@@ -319,9 +403,109 @@ export function stopVehicle(id: string): void {
   v.gpsActive = false;
   v.insActive = false;
   v.gpsSats = 0;
+  v.mode = "standby";
+  v.safetyState = "offline";
+  v.armed = false;
+  v.altitude = 0;
+  v.speed = 0;
+  v.thr = 0;
+  v.missionActiveIndex = null;
   v.linkActive = true;          // operator-initiated: not a link failure
   v.frozenFrame = null;
   pushLog("warn", "log.tag.link", "log.msg.disconnected", v.callsign);
   emitSnapshot();
   maybeStopTick();
+}
+
+export function commandVehicle(id: string, command: VehicleCommand): void {
+  const v = vehicles.find((x) => x.id === id);
+  if (!v) return;
+
+  if (!v.flight) {
+    pushLog("warn", "log.tag.cmd", "log.msg.command_rejected_offline", v.callsign);
+    return;
+  }
+
+  if (command === "kill") {
+    v.armed = false;
+    v.mode = "standby";
+    v.safetyState = "failsafe";
+    resetFlightDynamics(v);
+    pushLog("err", "log.tag.cmd", "log.msg.command_kill", v.callsign);
+    emitSnapshot();
+    return;
+  }
+
+  if (command === "arm") {
+    if (!preflightOk(v)) {
+      pushLog("warn", "log.tag.safe", "log.msg.arm_rejected", v.callsign);
+      return;
+    }
+    v.armed = true;
+    v.mode = "manual";
+    v.safetyState = "armed";
+    v.thr = 5;
+    pushLog("info", "log.tag.cmd", "log.msg.command_arm", v.callsign);
+    ensureTickRunning();
+    emitSnapshot();
+    return;
+  }
+
+  if (!v.armed) {
+    pushLog("warn", "log.tag.safe", "log.msg.command_rejected_disarmed", v.callsign);
+    return;
+  }
+
+  switch (command) {
+    case "disarm":
+      v.armed = false;
+      v.mode = "standby";
+      v.safetyState = v.linkActive ? "preflight" : "offline";
+      resetFlightDynamics(v);
+      pushLog("info", "log.tag.cmd", "log.msg.command_disarm", v.callsign);
+      break;
+    case "hold":
+      v.mode = "hold";
+      pushLog("info", "log.tag.cmd", "log.msg.command_hold", v.callsign);
+      break;
+    case "mission":
+      if (v.missionPlan.length === 0) {
+        pushLog("warn", "log.tag.cmd", "log.msg.command_rejected_no_plan", v.callsign);
+        return;
+      }
+      v.mode = "mission";
+      v.missionActiveIndex = 0;
+      pushLog("info", "log.tag.cmd", "log.msg.command_mission", v.callsign, v.missionPlan.length);
+      break;
+    case "rtl":
+      v.mode = "rtl";
+      v.missionActiveIndex = null;
+      pushLog("warn", "log.tag.cmd", "log.msg.command_rtl", v.callsign);
+      break;
+    case "land":
+      v.mode = "land";
+      v.missionActiveIndex = null;
+      pushLog("warn", "log.tag.cmd", "log.msg.command_land", v.callsign);
+      break;
+  }
+
+  emitSnapshot();
+}
+
+export function uploadMissionPlan(id: string, waypoints: MissionWaypoint[]): void {
+  const v = vehicles.find((x) => x.id === id);
+  if (!v) return;
+  v.missionPlan = waypoints
+    .filter((wp) => Number.isFinite(wp.lat) && Number.isFinite(wp.lon) && Number.isFinite(wp.alt))
+    .map((wp) => ({ ...wp }));
+  v.missionActiveIndex = null;
+  pushLog("info", "log.tag.model", "log.msg.plan_upload", v.missionPlan.length);
+  emitSnapshot();
+}
+
+export function recordCalibrationSample(id: string, step: number, capture: number, done: boolean): void {
+  const v = vehicles.find((x) => x.id === id);
+  if (!v) return;
+  pushLog("info", "log.tag.cal", done ? "log.msg.cal_step_done" : "log.msg.cal_capture",
+    capture, step, v.callsign);
 }
