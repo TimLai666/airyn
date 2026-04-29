@@ -243,7 +243,7 @@ function tickVehicle(v: SimVehicle): void {
     if (!v.armed) {
       resetFlightDynamics(v);
     } else {
-      if (v.mode !== "hold") {
+      if (v.mode !== "hold" && v.mode !== "standby") {
         const headRad = (v.heading * Math.PI) / 180;
         const dlat = (v.speed * SIM_DT * Math.cos(headRad)) / 111111;
         const dlon = (v.speed * SIM_DT * Math.sin(headRad)) / (111111 * Math.cos((v.lat * Math.PI) / 180));
@@ -254,12 +254,14 @@ function tickVehicle(v: SimVehicle): void {
       }
 
       v.safetyState = v.safetyState === "failsafe" ? "failsafe" : "armed";
-      v.thr = Math.max(5, Math.floor((v.mode === "hold" ? 18 : v.mode === "land" ? 22 : 35) + jitter(0, 6)));
-      v.roll = jitter(0, v.mode === "hold" ? 0.3 : 0.6);
-      v.pitch = jitter(0, v.mode === "hold" ? 0.3 : 0.6);
+      const steadyMode = v.mode === "hold" || v.mode === "standby";
+      const baseThrottle = v.mode === "standby" ? 5 : v.mode === "hold" ? 18 : v.mode === "land" ? 22 : 35;
+      v.thr = Math.max(0, Math.floor(baseThrottle + jitter(0, steadyMode ? 1.5 : 6)));
+      v.roll = jitter(0, steadyMode ? 0.2 : 0.6);
+      v.pitch = jitter(0, steadyMode ? 0.2 : 0.6);
       v.baroAlt = v.altitude + jitter(0, 0.3);
-      v.baroVs = v.mode === "land" ? -1.4 + jitter(0, 0.1) : jitter(0, 0.4);
-      v.batI = jitter(v.mode === "hold" ? 5.2 : 8.4, 0.6);
+      v.baroVs = v.mode === "land" ? -1.4 + jitter(0, 0.1) : jitter(0, steadyMode ? 0.08 : 0.4);
+      v.batI = jitter(v.mode === "standby" ? 1.4 : v.mode === "hold" ? 5.2 : 8.4, 0.6);
       v.batUsed += (v.batI * SIM_DT) / 3.6;
 
       if (v.mode === "mission" && v.missionPlan.length > 0) {
@@ -442,7 +444,7 @@ export function commandVehicle(id: string, command: VehicleCommand): void {
       return;
     }
     v.armed = true;
-    v.mode = "manual";
+    v.mode = "standby";
     v.safetyState = "armed";
     v.thr = 5;
     pushLog("info", "log.tag.cmd", "log.msg.command_arm", v.callsign);
@@ -489,6 +491,14 @@ export function commandVehicle(id: string, command: VehicleCommand): void {
       break;
   }
 
+  emitSnapshot();
+}
+
+export function configureVehicleLink(id: string, link: VehicleLink): void {
+  const v = vehicles.find((x) => x.id === id);
+  if (!v) return;
+  v.link = { ...link };
+  pushLog("info", "log.tag.link", "log.msg.link_config", v.callsign, `${v.link.transport.toUpperCase()} · ${v.link.endpoint}`);
   emitSnapshot();
 }
 

@@ -425,6 +425,25 @@ Tasks:
   - WebSocket/TCP via Mission
 - Add persisted logs, mission library, and replay after the basic transport is working.
 
+Ground follow-up completed:
+
+- Simulator arm now enters an armed-idle state instead of immediately simulating climb/turning motion; hold is labeled as position hold.
+- Settings transport fields now update the active vehicle link locally and through the Bun bridge; controls that do not yet have real behavior are disabled instead of acting editable.
+- Mission waypoint editing no longer uses the native select dropdown for waypoint type, and the table columns were widened/stabilized for dense operator use.
+
+Latest Ground usability pass completed:
+
+1. Removed the Leaflet attribution/control from the operator map.
+2. Persisted the active workspace while keeping `combined` as the safe default.
+3. Added visible disabled reasons and keyboard hints to flight command controls.
+4. Added a two-step, 3-second confirmation for motor cut.
+5. Added keyboard command shortcuts for arm, hold, mission, RTL, land, disarm, and motor cut.
+6. Added mission validation before upload for waypoint count, endpoints, coordinates, altitude, and distance.
+7. Reflected clamped waypoint values back into the table inputs so edits cannot hide invalid data.
+8. Auto-fit the map around the fleet and mission route after mission or active-vehicle changes.
+9. Split telemetry status into normal armed/disarmed, link-lost prediction, and onboard INS modes.
+10. Capped the in-memory log buffer to prevent long-running operator sessions from slowing the UI.
+
 Done when:
 
 - A user can connect to a vehicle, verify preflight state, upload a plan, arm, run/hold/RTL/land/disarm, calibrate, and inspect logs through real transport-backed actions.

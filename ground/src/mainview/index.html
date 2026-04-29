@@ -640,32 +640,32 @@
               <span class="readout-status state--off" data-status="transport" data-i18n="state.disconnected">DISCONNECTED</span>
             </header>
             <div class="radio-row">
-              <label class="radio is-active" data-transport="serial"><input type="radio" name="transport" checked><span data-i18n="transport.serial">SERIAL</span></label>
-              <label class="radio" data-transport="udp"><input type="radio" name="transport"><span data-i18n="transport.udp">UDP</span></label>
-              <label class="radio" data-transport="mission"><input type="radio" name="transport"><span data-i18n="transport.via_mission">VIA MISSION</span></label>
+              <label class="radio is-active" data-transport="serial"><input type="radio" name="transport" value="serial" checked><span data-i18n="transport.serial">SERIAL</span></label>
+              <label class="radio" data-transport="udp"><input type="radio" name="transport" value="udp"><span data-i18n="transport.udp">UDP</span></label>
+              <label class="radio" data-transport="mission"><input type="radio" name="transport" value="mission"><span data-i18n="transport.via_mission">VIA MISSION</span></label>
             </div>
             <div class="field-row">
               <label class="field">
                 <span class="field-key" data-i18n="field.port">PORT</span>
-                <select class="field-input"><option>—</option><option>COM3</option><option>COM4</option><option>COM7</option></select>
+                <select class="field-input" data-setting="serialPort"><option>—</option><option>COM3</option><option>COM4</option><option>COM7</option></select>
               </label>
               <label class="field">
                 <span class="field-key" data-i18n="field.baud">BAUD</span>
-                <select class="field-input"><option>921600</option><option>460800</option><option>230400</option><option>115200</option></select>
+                <select class="field-input" data-setting="baud"><option>921600</option><option>460800</option><option>230400</option><option>115200</option></select>
               </label>
             </div>
             <div class="field-row">
               <label class="field">
                 <span class="field-key" data-i18n="field.udp_host">UDP HOST</span>
-                <input class="field-input" type="text" value="127.0.0.1">
+                <input class="field-input" data-setting="udpHost" type="text" value="127.0.0.1">
               </label>
               <label class="field">
                 <span class="field-key" data-i18n="field.udp_port">UDP PORT</span>
-                <input class="field-input" type="text" value="14550">
+                <input class="field-input" data-setting="udpPort" type="text" value="14550">
               </label>
               <label class="field">
                 <span class="field-key" data-i18n="field.mission_host">MISSION HOST</span>
-                <input class="field-input" type="text" value="airyn-mission.local:7700">
+                <input class="field-input" data-setting="missionHost" type="text" value="airyn-mission.local:7700">
               </label>
             </div>
             <div class="form-actions">
@@ -688,11 +688,11 @@
             <div class="field-row">
               <label class="field">
                 <span class="field-key" data-i18n="field.model">MODEL</span>
-                <select class="field-input"><option>dev/testbench</option><option>stable/quad-5inch</option><option>experimental/x-tail</option></select>
+                <select class="field-input" disabled><option>dev/testbench</option><option>stable/quad-5inch</option><option>experimental/x-tail</option></select>
               </label>
               <label class="field">
                 <span class="field-key" data-i18n="field.board">BOARD</span>
-                <select class="field-input"><option>rp2350a-breadboard</option><option>rp2350a-pcb-rev-a</option></select>
+                <select class="field-input" disabled><option>rp2350a-breadboard</option><option>rp2350a-pcb-rev-a</option></select>
               </label>
             </div>
           </article>
@@ -712,14 +712,14 @@
               </label>
               <label class="field">
                 <span class="field-key" data-i18n="field.units">UNITS</span>
-                <select class="field-input">
+                <select class="field-input" disabled>
                   <option data-i18n="units.metric">METRIC</option>
                   <option data-i18n="units.imperial">IMPERIAL</option>
                 </select>
               </label>
               <label class="field">
                 <span class="field-key" data-i18n="field.telem_rate">TELEM RATE</span>
-                <select class="field-input"><option>50 Hz</option><option>100 Hz</option><option>200 Hz</option></select>
+                <select class="field-input" disabled><option>50 Hz</option><option>100 Hz</option><option>200 Hz</option></select>
               </label>
             </div>
           </article>

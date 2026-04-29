@@ -110,6 +110,7 @@ export type ServerMessage =
 export type ClientMessage =
   | { type: "connect"; id: string }
   | { type: "disconnect"; id: string }
+  | { type: "configureLink"; id: string; link: VehicleLink }
   | { type: "command"; id: string; command: VehicleCommand }
   | { type: "uploadPlan"; id: string; waypoints: MissionWaypoint[] }
   | { type: "calibration"; id: string; step: number; capture: number; done: boolean };

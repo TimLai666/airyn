@@ -14,6 +14,7 @@
 import type { ServerWebSocket } from "bun";
 import {
   commandVehicle,
+  configureVehicleLink,
   startVehicle,
   stopVehicle,
   subscribe,
@@ -76,6 +77,7 @@ export function startBridge(port: number): void {
           const cmd = JSON.parse(typeof raw === "string" ? raw : raw.toString()) as ClientMessage;
           if (cmd.type === "connect") startVehicle(cmd.id);
           else if (cmd.type === "disconnect") stopVehicle(cmd.id);
+          else if (cmd.type === "configureLink") configureVehicleLink(cmd.id, cmd.link);
           else if (cmd.type === "command") commandVehicle(cmd.id, cmd.command);
           else if (cmd.type === "uploadPlan") uploadMissionPlan(cmd.id, cmd.waypoints);
           else if (cmd.type === "calibration") recordCalibrationSample(cmd.id, cmd.step, cmd.capture, cmd.done);

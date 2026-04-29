@@ -30,6 +30,54 @@ type SafetyState = "offline" | "preflight" | "armed" | "failsafe";
 type VehicleCommand = "arm" | "disarm" | "hold" | "mission" | "rtl" | "land" | "kill";
 type WaypointType = "wp.takeoff" | "wp.waypt" | "wp.land";
 
+const VIEW_NAMES = ["combined", "cameras", "sensors", "mission", "calibration", "log", "settings"] as const;
+type ViewName = typeof VIEW_NAMES[number];
+
+const COMMAND_LABEL_KEYS: Record<VehicleCommand, string> = {
+  arm: "btn.arm",
+  disarm: "btn.disarm",
+  hold: "btn.hold",
+  mission: "btn.mission_start",
+  rtl: "btn.rtl",
+  land: "btn.land",
+  kill: "btn.kill",
+};
+
+const COMMAND_META_KEYS: Record<VehicleCommand, string> = {
+  arm: "btn.arm.meta",
+  disarm: "btn.disarm.meta",
+  hold: "btn.hold.meta",
+  mission: "btn.mission_start.meta",
+  rtl: "btn.rtl.meta",
+  land: "btn.land.meta",
+  kill: "btn.kill.meta",
+};
+
+const COMMAND_SHORTCUTS: Record<VehicleCommand, string> = {
+  arm: "A",
+  hold: "H",
+  mission: "M",
+  rtl: "R",
+  land: "L",
+  disarm: "D",
+  kill: "K",
+};
+
+const COMMAND_KEYMAP: Record<string, VehicleCommand> = {
+  a: "arm",
+  h: "hold",
+  m: "mission",
+  r: "rtl",
+  l: "land",
+  d: "disarm",
+  k: "kill",
+};
+
+const LOG_LIMIT = 500;
+const KILL_CONFIRM_MS = 3000;
+const MISSION_MAX_WAYPOINTS = 60;
+const MISSION_MAX_DISTANCE_M = 10000;
+
 declare const L: any;
 
 interface VehicleLink {
@@ -92,7 +140,7 @@ interface Vehicle {
 
 interface State {
   lang: Lang;
-  view: string;
+  view: ViewName;
   cam: string;
   flight: boolean;
   mission: boolean;
@@ -106,6 +154,15 @@ interface State {
   search: string;
   vehicles: Vehicle[];
   activeVehicleId: string;
+  settings: AppSettings;
+}
+
+interface AppSettings {
+  serialPort: string;
+  baud: string;
+  udpHost: string;
+  udpPort: string;
+  missionHost: string;
 }
 
 interface LogEntry {
@@ -147,7 +204,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "val.armed.yes": "是",
     "mode.standby": "待命",
     "mode.manual": "手動",
-    "mode.hold": "定點",
+    "mode.hold": "位置保持",
     "mode.mission": "任務",
     "mode.rtl": "返航",
     "mode.land": "降落",
@@ -168,8 +225,8 @@ const dicts: Record<Lang, Record<string, string>> = {
     "btn.arm.meta": "允許馬達輸出",
     "btn.disarm": "解除武裝",
     "btn.disarm.meta": "停止一般輸出",
-    "btn.hold": "定點",
-    "btn.hold.meta": "保持位置",
+    "btn.hold": "保持位置",
+    "btn.hold.meta": "懸停於目前位置",
     "btn.mission_start": "執行任務",
     "btn.mission_start.meta": "使用已上傳計畫",
     "btn.rtl": "返航",
@@ -178,6 +235,16 @@ const dicts: Record<Lang, Record<string, string>> = {
     "btn.land.meta": "受控下降",
     "btn.kill": "馬達切斷",
     "btn.kill.meta": "空中會墜落",
+    "btn.kill.confirm": "確認切斷",
+    "btn.kill.confirm.meta": "3 秒內再按一次",
+    "cmd.reason.offline": "載具離線",
+    "cmd.reason.link_lost": "空地鏈路中斷",
+    "cmd.reason.preflight": "起飛前檢查未通過",
+    "cmd.reason.already_armed": "已武裝",
+    "cmd.reason.disarmed": "尚未武裝",
+    "cmd.reason.plan_dirty": "任務已修改，需重新上傳",
+    "cmd.reason.no_upload": "尚未上傳任務",
+    "cmd.shortcut": "快捷鍵 {0}",
 
     "tab.map": "地圖",
     "tab.combined": "主控",
@@ -216,6 +283,8 @@ const dicts: Record<Lang, Record<string, string>> = {
     "readout.telemetry": "遙測",
     "readout.safe_disarmed": "安全 / 未武裝",
     "readout.armed_active": "已武裝 / 飛行中",
+    "readout.link_lost": "連線中斷 / 推算",
+    "readout.ins_active": "INS / 無 GPS",
     "tel.roll": "滾轉",
     "tel.pitch": "俯仰",
     "tel.yaw": "偏航",
@@ -224,7 +293,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "tel.armed": "武裝",
     "readout.queue": "航線佇列",
     "queue.tasks": "{0} 項任務",
-    "queue.hold": "維持位置",
+    "queue.hold": "保持位置",
     "queue.await": "等待載具連線",
     "queue.upload": "上傳飛行計畫",
     "queue.pend": "待命",
@@ -317,6 +386,14 @@ const dicts: Record<Lang, Record<string, string>> = {
     "mission.col.alt": "高度",
     "mission.col.actions": "動作",
     "mission.uploaded": "{0} 個已上傳",
+    "mission.summary.invalid": "{0} 個航點 · 需修正",
+    "mission.invalid.empty": "任務需要至少 2 個航點",
+    "mission.invalid.too_many": "航點上限 {0} 個",
+    "mission.invalid.coord": "第 {0} 點座標無效",
+    "mission.invalid.alt": "第 {0} 點高度需在 0-500 m",
+    "mission.invalid.low_alt": "第 {0} 點非降落高度至少 5 m",
+    "mission.invalid.endpoints": "需要起飛點與降落點",
+    "mission.invalid.distance": "總距離不可超過 {0} km",
     "wp.takeoff": "起飛",
     "wp.waypt": "航點",
     "wp.land": "降落",
@@ -377,6 +454,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.ready": "操作員介面就緒 · 等待連線",
     "log.msg.connected": "{0} 飛控已連線 · 遙測 100 Hz · {1}",
     "log.msg.connected_via_mission": "{0} 任務電腦握手成功 · {1} → 中繼飛控遙測",
+    "log.msg.link_config": "{0} 連線設定已套用 · {1}",
     "log.msg.disconnected": "{0} 飛控連線中斷",
     "log.msg.disconnect_blocked_armed": "{0} 仍在武裝狀態，請先降落或解除武裝再中斷連線",
     "log.msg.gps_fix": "{0} GPS 取得 3D 定位 · {1} 顆衛星",
@@ -389,13 +467,16 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.plan_update": "已更新航點 · #{0}",
     "log.msg.plan_delete": "已刪除航點 · #{0}",
     "log.msg.command_sent": "已送出指令 · {0}",
+    "log.msg.command_rejected_reason": "指令未執行 · {0} · {1}",
+    "log.msg.kill_confirm": "{0} 馬達切斷需二次確認：3 秒內再按一次",
+    "log.msg.plan_invalid": "任務未上傳 · {0}",
     "log.msg.command_rejected_offline": "{0} 離線，指令未執行",
     "log.msg.command_rejected_disarmed": "{0} 未武裝，指令未執行",
     "log.msg.command_rejected_no_plan": "{0} 尚未上傳任務計畫",
     "log.msg.arm_rejected": "{0} 起飛前檢查未通過，拒絕武裝",
     "log.msg.command_arm": "{0} 已武裝",
     "log.msg.command_disarm": "{0} 已解除武裝",
-    "log.msg.command_hold": "{0} 切換定點模式",
+    "log.msg.command_hold": "{0} 進入位置保持",
     "log.msg.command_mission": "{0} 開始執行任務 · {1} 航點",
     "log.msg.command_rtl": "{0} 返航中",
     "log.msg.command_land": "{0} 降落中",
@@ -422,6 +503,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "field.board": "板子",
     "settings.preferences": "偏好設定",
     "settings.local": "本機",
+    "settings.applied": "已套用",
     "field.units": "單位",
     "units.metric": "公制",
     "units.imperial": "英制",
@@ -488,7 +570,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "btn.disarm": "DISARM",
     "btn.disarm.meta": "STOP NORMAL OUTPUT",
     "btn.hold": "HOLD",
-    "btn.hold.meta": "KEEP POSITION",
+    "btn.hold.meta": "KEEP CURRENT POSITION",
     "btn.mission_start": "START MISSION",
     "btn.mission_start.meta": "RUN UPLOADED PLAN",
     "btn.rtl": "RTL",
@@ -497,6 +579,16 @@ const dicts: Record<Lang, Record<string, string>> = {
     "btn.land.meta": "CONTROLLED DESCENT",
     "btn.kill": "MOTOR CUT",
     "btn.kill.meta": "AIRBORNE CRASH RISK",
+    "btn.kill.confirm": "CONFIRM CUT",
+    "btn.kill.confirm.meta": "PRESS AGAIN WITHIN 3S",
+    "cmd.reason.offline": "vehicle offline",
+    "cmd.reason.link_lost": "air-ground link lost",
+    "cmd.reason.preflight": "preflight not passed",
+    "cmd.reason.already_armed": "already armed",
+    "cmd.reason.disarmed": "not armed",
+    "cmd.reason.plan_dirty": "plan changed; upload again",
+    "cmd.reason.no_upload": "no uploaded mission",
+    "cmd.shortcut": "shortcut {0}",
 
     "tab.map": "MAP",
     "tab.combined": "COMBINED",
@@ -535,6 +627,8 @@ const dicts: Record<Lang, Record<string, string>> = {
     "readout.telemetry": "TELEMETRY",
     "readout.safe_disarmed": "SAFE / DISARMED",
     "readout.armed_active": "ARMED / ACTIVE",
+    "readout.link_lost": "LINK LOST / PREDICT",
+    "readout.ins_active": "INS / NO GPS",
     "tel.roll": "ROLL",
     "tel.pitch": "PITCH",
     "tel.yaw": "YAW",
@@ -636,6 +730,14 @@ const dicts: Record<Lang, Record<string, string>> = {
     "mission.col.alt": "ALT",
     "mission.col.actions": "ACTIONS",
     "mission.uploaded": "{0} UPLOADED",
+    "mission.summary.invalid": "{0} WAYPOINTS · FIX NEEDED",
+    "mission.invalid.empty": "mission needs at least 2 waypoints",
+    "mission.invalid.too_many": "waypoint limit is {0}",
+    "mission.invalid.coord": "waypoint {0} has invalid coordinates",
+    "mission.invalid.alt": "waypoint {0} altitude must be 0-500 m",
+    "mission.invalid.low_alt": "waypoint {0} needs at least 5 m unless landing",
+    "mission.invalid.endpoints": "takeoff and landing points are required",
+    "mission.invalid.distance": "total distance must be under {0} km",
     "wp.takeoff": "TAKEOFF",
     "wp.waypt": "WAYPT",
     "wp.land": "LAND",
@@ -696,6 +798,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.ready": "Operator view ready · awaiting connect",
     "log.msg.connected": "{0} flight controller connected · telemetry 100 Hz · {1}",
     "log.msg.connected_via_mission": "{0} mission computer handshake OK · {1} → relaying flight controller telemetry",
+    "log.msg.link_config": "{0} link settings applied · {1}",
     "log.msg.disconnected": "{0} flight controller disconnected",
     "log.msg.disconnect_blocked_armed": "{0} is armed; land or disarm before disconnecting",
     "log.msg.gps_fix": "{0} GPS acquired 3D fix · {1} satellites",
@@ -708,6 +811,9 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.plan_update": "Waypoint updated · #{0}",
     "log.msg.plan_delete": "Waypoint deleted · #{0}",
     "log.msg.command_sent": "Command sent · {0}",
+    "log.msg.command_rejected_reason": "Command not run · {0} · {1}",
+    "log.msg.kill_confirm": "{0} motor cut requires confirmation: press again within 3 seconds",
+    "log.msg.plan_invalid": "Mission not uploaded · {0}",
     "log.msg.command_rejected_offline": "{0} is offline; command not executed",
     "log.msg.command_rejected_disarmed": "{0} is disarmed; command not executed",
     "log.msg.command_rejected_no_plan": "{0} has no uploaded mission plan",
@@ -741,6 +847,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "field.board": "BOARD",
     "settings.preferences": "PREFERENCES",
     "settings.local": "LOCAL",
+    "settings.applied": "APPLIED",
     "field.units": "UNITS",
     "units.metric": "METRIC",
     "units.imperial": "IMPERIAL",
@@ -835,11 +942,23 @@ const initialState: State = {
   search: "",
   vehicles: makeFleet(),
   activeVehicleId: "v1",
+  settings: {
+    serialPort: "COM3",
+    baud: "921600",
+    udpHost: "127.0.0.1",
+    udpPort: "14550",
+    missionHost: "airyn-mc-02.local:7700",
+  },
 };
+
+function isViewName(value: unknown): value is ViewName {
+  return typeof value === "string" && VIEW_NAMES.includes(value as ViewName);
+}
 
 function loadState(): State {
   const s: State = {
     ...initialState,
+    settings: { ...initialState.settings },
     calCaptured: { ...initialState.calCaptured },
     vehicles: makeFleet(),
   };
@@ -851,8 +970,18 @@ function loadState(): State {
     if (stored.transport === "serial" || stored.transport === "udp" || stored.transport === "mission") {
       s.transport = stored.transport;
     }
+    if (isViewName(stored.view)) s.view = stored.view;
     if (typeof stored.activeVehicleId === "string" && s.vehicles.some((v) => v.id === stored.activeVehicleId)) {
       s.activeVehicleId = stored.activeVehicleId;
+    }
+    if (stored.settings && typeof stored.settings === "object") {
+      s.settings = {
+        serialPort: typeof stored.settings.serialPort === "string" ? stored.settings.serialPort : s.settings.serialPort,
+        baud: typeof stored.settings.baud === "string" ? stored.settings.baud : s.settings.baud,
+        udpHost: typeof stored.settings.udpHost === "string" ? stored.settings.udpHost : s.settings.udpHost,
+        udpPort: typeof stored.settings.udpPort === "string" ? stored.settings.udpPort : s.settings.udpPort,
+        missionHost: typeof stored.settings.missionHost === "string" ? stored.settings.missionHost : s.settings.missionHost,
+      };
     }
   } catch {
     /* ignore */
@@ -870,8 +999,10 @@ function persist(): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       lang: state.lang,
+      view: state.view,
       transport: state.transport,
       activeVehicleId: state.activeVehicleId,
+      settings: state.settings,
     }));
   } catch {
     /* ignore */
@@ -917,17 +1048,19 @@ function applyI18n(): void {
 // ---------- 5. View router ----------
 
 function setView(name: string): void {
-  state.view = name;
+  const viewName = isViewName(name) ? name : "combined";
+  state.view = viewName;
   $$<HTMLButtonElement>("[data-tab]").forEach((tab) => {
-    tab.classList.toggle("is-active", tab.dataset["tab"] === name);
+    tab.classList.toggle("is-active", tab.dataset["tab"] === viewName);
   });
   $$<HTMLElement>(".view[data-view]").forEach((view) => {
-    view.hidden = view.dataset["view"] !== name;
+    view.hidden = view.dataset["view"] !== viewName;
   });
   // The single Leaflet map element is moved between the MAP and COMBINED
   // view slots so we don't pay the cost of two map instances + duplicate
   // markers/polylines.
-  ensureMapMounted(name);
+  ensureMapMounted(viewName);
+  persist();
 }
 
 function ensureMapMounted(viewName: string): void {
@@ -1013,7 +1146,7 @@ function initMap(): void {
 
   leafletMap = L.map(el, {
     zoomControl: true,
-    attributionControl: true,
+    attributionControl: false,
     minZoom: 4,
     maxZoom: 19,
     zoomSnap: 0.5,
@@ -1025,7 +1158,7 @@ function initMap(): void {
   // Carto Voyager — neutral cream basemap with subtle road colours.
   // Matches a real GCS look while keeping the cinematic chrome readable.
   L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
-    attribution: "&copy; OpenStreetMap &copy; CARTO",
+    attribution: "",
     subdomains: "abcd",
     maxZoom: 19,
   }).addTo(leafletMap);
@@ -1034,6 +1167,7 @@ function initMap(): void {
     setupVehicleLayers(v);
   }
   setActiveVehicle(state.activeVehicleId, false);
+  scheduleOperationalMapFit();
 }
 
 function setupVehicleLayers(v: Vehicle): void {
@@ -1093,6 +1227,31 @@ function updateRangeRings(): void {
   }
 }
 
+function fitMapToOperationalContext(): void {
+  if (!leafletMap || typeof L === "undefined") return;
+  const coords: [number, number][] = [];
+  const add = (lat: number, lon: number) => {
+    if (Number.isFinite(lat) && Number.isFinite(lon)) coords.push([lat, lon]);
+  };
+  for (const v of state.vehicles) add(v.lat, v.lon);
+  for (const wp of waypoints) add(wp.lat, wp.lon);
+
+  if (coords.length === 0) return;
+  if (coords.length === 1) {
+    leafletMap.setView(coords[0], Math.min(16, leafletMap.getZoom() || 14), { animate: true });
+    return;
+  }
+  const bounds = L.latLngBounds(coords);
+  if (bounds?.isValid?.()) {
+    leafletMap.fitBounds(bounds.pad(0.18), { animate: true, duration: 0.35, maxZoom: 16 });
+  }
+}
+
+function scheduleOperationalMapFit(): void {
+  if (!leafletMap) return;
+  requestAnimationFrame(fitMapToOperationalContext);
+}
+
 function setActiveVehicle(id: string, recenter: boolean): void {
   const next = state.vehicles.find((v) => v.id === id);
   if (!next) return;
@@ -1101,7 +1260,7 @@ function setActiveVehicle(id: string, recenter: boolean): void {
   for (const v of state.vehicles) refreshMarkerClass(v);
   updateRangeRings();
   if (recenter && leafletMap) {
-    leafletMap.panTo([next.lat, next.lon], { animate: true, duration: 0.4 });
+    fitMapToOperationalContext();
   }
   renderFleetChips();
   renderActive();
@@ -1111,6 +1270,7 @@ function setActiveVehicle(id: string, recenter: boolean): void {
   renderFlightModeRail();
   renderCommandControls();
   renderMissionActiveState();
+  loadSettingsFromActiveVehicle();
   refreshTransportStatusFromActive();
   pushLog("info", "log.tag.ui", "log.msg.veh_select", next.callsign);
 }
@@ -1237,6 +1397,7 @@ function connectBridge(): void {
 type BridgeClientMessage =
   | { type: "connect"; id: string }
   | { type: "disconnect"; id: string }
+  | { type: "configureLink"; id: string; link: VehicleLink }
   | { type: "command"; id: string; command: VehicleCommand }
   | { type: "uploadPlan"; id: string; waypoints: ServerMissionWaypoint[] }
   | { type: "calibration"; id: string; step: number; capture: number; done: boolean };
@@ -1346,6 +1507,7 @@ function onHello(hello: ServerHello): void {
   renderConnectButton();
   renderFlightModeRail();
   renderCommandControls();
+  applyActiveVehicleLink(true);
 }
 
 function applyFleetFrame(frame: ServerFleetFrame): void {
@@ -1520,7 +1682,11 @@ function renderActive(): void {
   const thr = String(v.thr);
   const vbat = v.vbat.toFixed(1);
   const armedTxt = v.armed ? t("val.armed.yes") : t("val.armed.no");
-  const safetyTxt = v.armed ? t("readout.armed_active") : t("readout.safe_disarmed");
+  const safetyTxt =
+    !v.linkActive ? t("readout.link_lost") :
+    v.insActive ? t("readout.ins_active") :
+    v.armed ? t("readout.armed_active") :
+    t("readout.safe_disarmed");
 
   setText("[data-tel='roll']", roll);
   setText("[data-tel='pitch']", pitch);
@@ -1537,8 +1703,9 @@ function renderActive(): void {
   setText("[data-tel-cb='armed']", armedTxt);
   $$<HTMLElement>("[data-status='armed']").forEach((el) => {
     el.textContent = safetyTxt;
-    el.classList.toggle("state--ok", v.armed);
-    el.classList.toggle("state--warn", v.safetyState === "failsafe");
+    el.classList.toggle("state--ok", v.armed && v.linkActive && !v.insActive);
+    el.classList.toggle("state--warn", v.safetyState === "failsafe" || (v.linkActive && v.insActive));
+    el.classList.toggle("state--off", !v.linkActive);
   });
 
   setText("[data-sens='gyro-x']", fmtSigned(v.gyroX, 2, 5));
@@ -1642,8 +1809,20 @@ function setActiveVehicleConnected(on: boolean): void {
 function sendVehicleCommand(command: VehicleCommand): void {
   const v = activeVehicle();
   if (!v) return;
+  const blockedReason = commandBlockedReason(command, v);
+  if (blockedReason) {
+    pushLog("warn", "log.tag.cmd", "log.msg.command_rejected_reason", commandLabel(command), blockedReason);
+    renderCommandControls();
+    return;
+  }
+  if (command === "kill" && !killConfirmationPending()) {
+    beginKillConfirmation(v);
+    return;
+  }
+  clearKillConfirmation(false);
   if (sendBridge({ type: "command", id: v.id, command })) {
-    pushLog("info", "log.tag.cmd", "log.msg.command_sent", t(`btn.${command === "mission" ? "mission_start" : command}`));
+    pushLog("info", "log.tag.cmd", "log.msg.command_sent", commandLabel(command));
+    renderCommandControls();
   }
 }
 
@@ -1726,7 +1905,7 @@ function resetTelemetryDisplay(): void {
 
   $$<HTMLElement>("[data-status='armed']").forEach((el) => {
     el.textContent = t("readout.safe_disarmed");
-    el.classList.remove("state--ok", "state--warn");
+    el.classList.remove("state--ok", "state--warn", "state--off");
   });
   renderAltitudeProfile();
   renderTerrainRelative();
@@ -1784,13 +1963,54 @@ function renderFlightModeRail(): void {
   }
 }
 
-function commandEnabled(command: VehicleCommand, v: Vehicle): boolean {
-  if (command === "kill") return v.flight && v.armed;
-  if (!v.flight || !v.linkActive) return false;
-  if (command === "arm") return !v.armed && v.preflightOk;
-  if (!v.armed) return false;
-  if (command === "mission") return !missionPlanDirty && v.missionUploaded && v.missionCount > 0;
-  return true;
+let killConfirmUntil = 0;
+let killConfirmTimer: ReturnType<typeof setTimeout> | null = null;
+
+function commandLabel(command: VehicleCommand): string {
+  return t(COMMAND_LABEL_KEYS[command]);
+}
+
+function commandMeta(command: VehicleCommand): string {
+  return t(COMMAND_META_KEYS[command]);
+}
+
+function killConfirmationPending(): boolean {
+  return Date.now() < killConfirmUntil;
+}
+
+function clearKillConfirmation(render = true): void {
+  killConfirmUntil = 0;
+  if (killConfirmTimer) {
+    clearTimeout(killConfirmTimer);
+    killConfirmTimer = null;
+  }
+  if (render) renderCommandControls();
+}
+
+function beginKillConfirmation(v: Vehicle): void {
+  killConfirmUntil = Date.now() + KILL_CONFIRM_MS;
+  if (killConfirmTimer) clearTimeout(killConfirmTimer);
+  killConfirmTimer = setTimeout(() => clearKillConfirmation(), KILL_CONFIRM_MS);
+  pushLog("warn", "log.tag.safe", "log.msg.kill_confirm", v.callsign);
+  renderCommandControls();
+}
+
+function commandBlockedReason(command: VehicleCommand, v: Vehicle): string | null {
+  if (!v.flight) return t("cmd.reason.offline");
+  if (!v.linkActive) return t("cmd.reason.link_lost");
+  if (command === "arm") {
+    if (v.armed) return t("cmd.reason.already_armed");
+    if (!v.preflightOk) return t("cmd.reason.preflight");
+    return null;
+  }
+  if (!v.armed) return t("cmd.reason.disarmed");
+  if (command === "mission") {
+    const validation = validateMissionPlan();
+    if (validation) return validation;
+    if (missionPlanDirty) return t("cmd.reason.plan_dirty");
+    if (!v.missionUploaded || v.missionCount <= 0) return t("cmd.reason.no_upload");
+  }
+  return null;
 }
 
 function renderCommandControls(): void {
@@ -1806,15 +2026,33 @@ function renderCommandControls(): void {
   $$<HTMLButtonElement>("[data-command]").forEach((btn) => {
     const command = btn.dataset["command"] as VehicleCommand | undefined;
     if (!command) return;
-    btn.disabled = !commandEnabled(command, v);
+    const blockedReason = commandBlockedReason(command, v);
+    const enabled = blockedReason === null;
+    const confirming = command === "kill" && enabled && killConfirmationPending();
+    btn.disabled = !enabled;
     const active =
       (command === "hold" && v.mode === "hold") ||
       (command === "mission" && v.mode === "mission") ||
       (command === "rtl" && v.mode === "rtl") ||
       (command === "land" && v.mode === "land") ||
       (command === "arm" && v.armed);
+    const label = btn.querySelector<HTMLElement>(".op-btn-label");
+    const meta = btn.querySelector<HTMLElement>(".op-btn-meta");
+    const labelText = confirming ? t("btn.kill.confirm") : commandLabel(command);
+    const metaText = blockedReason ?? (confirming ? t("btn.kill.confirm.meta") : commandMeta(command));
+    const shortcut = COMMAND_SHORTCUTS[command];
+    const title = blockedReason
+      ? `${labelText} · ${blockedReason}`
+      : `${labelText} · ${t("cmd.shortcut", shortcut)}`;
+    if (label) label.textContent = labelText;
+    if (meta) meta.textContent = metaText;
     btn.classList.toggle("is-active", active);
+    btn.classList.toggle("is-confirming", confirming);
+    btn.classList.toggle("is-blocked", Boolean(blockedReason));
     btn.setAttribute("aria-pressed", active ? "true" : "false");
+    btn.setAttribute("aria-label", title);
+    btn.setAttribute("aria-disabled", enabled ? "false" : "true");
+    btn.title = title;
   });
 }
 
@@ -1837,9 +2075,10 @@ function refreshTransportStatusFromActive(): void {
   if (!transportStatus) return;
   const v = activeVehicle();
   const on = v?.flight ?? false;
-  transportStatus.textContent = on ? t("state.connected") : t("state.disconnected");
+  transportStatus.textContent = on ? t("state.connected") : t("settings.applied");
   transportStatus.classList.toggle("state--ok", on);
-  transportStatus.classList.toggle("state--off", !on);
+  transportStatus.classList.toggle("state--warn", !on);
+  transportStatus.classList.toggle("state--off", false);
   const disconnect = $<HTMLButtonElement>("[data-action='settings-disconnect']");
   if (disconnect) disconnect.disabled = Boolean(v?.armed);
 }
@@ -1880,6 +2119,7 @@ function nowTs(): string {
 
 function pushLog(level: LogLevel, tagKey: string, msgKey: string, ...args: (string | number)[]): void {
   logBuffer.push({ ts: nowTs(), tag: tagKey, level, msgKey, msgArgs: args });
+  if (logBuffer.length > LOG_LIMIT) logBuffer.splice(0, logBuffer.length - LOG_LIMIT);
   renderLog();
 }
 
@@ -2075,6 +2315,31 @@ function missionDistanceMeters(): number {
   return d;
 }
 
+function validateMissionPlan(): string | null {
+  if (waypoints.length < 2) return t("mission.invalid.empty");
+  if (waypoints.length > MISSION_MAX_WAYPOINTS) return t("mission.invalid.too_many", MISSION_MAX_WAYPOINTS);
+  if (!waypoints.some((wp) => wp.type === "wp.takeoff") || !waypoints.some((wp) => wp.type === "wp.land")) {
+    return t("mission.invalid.endpoints");
+  }
+  for (let i = 0; i < waypoints.length; i++) {
+    const wp = waypoints[i]!;
+    const idx = i + 1;
+    if (!Number.isFinite(wp.lat) || !Number.isFinite(wp.lon) || wp.lat < -90 || wp.lat > 90 || wp.lon < -180 || wp.lon > 180) {
+      return t("mission.invalid.coord", idx);
+    }
+    if (!Number.isFinite(wp.alt) || wp.alt < 0 || wp.alt > 500) {
+      return t("mission.invalid.alt", idx);
+    }
+    if (wp.type !== "wp.land" && wp.alt < 5) {
+      return t("mission.invalid.low_alt", idx);
+    }
+  }
+  if (missionDistanceMeters() > MISSION_MAX_DISTANCE_M) {
+    return t("mission.invalid.distance", (MISSION_MAX_DISTANCE_M / 1000).toFixed(0));
+  }
+  return null;
+}
+
 function missionCumulativeMeters(): number[] {
   const distances: number[] = [0];
   for (let i = 1; i < waypoints.length; i++) {
@@ -2257,6 +2522,18 @@ function markMissionDirty(): void {
   renderCommandControls();
 }
 
+function renderMissionSummary(): void {
+  const validation = validateMissionPlan();
+  const summary = $<HTMLElement>("[data-mission='summary']");
+  if (summary) {
+    summary.textContent = validation ? t("mission.summary.invalid", waypoints.length) : t("mission.summary", waypoints.length, 0);
+    summary.title = validation ?? summary.textContent ?? "";
+    summary.classList.toggle("state--warn", Boolean(validation));
+  }
+  const planned = $<HTMLElement>("[data-mission='planned']");
+  if (planned) planned.textContent = t("mission.planned", waypoints.length);
+}
+
 function renderWaypointTable(): void {
   const tbody = $<HTMLTableSectionElement>(".wp-table tbody");
   if (!tbody) return;
@@ -2267,26 +2544,26 @@ function renderWaypointTable(): void {
     const tr = document.createElement("tr");
     tr.dataset["wpIndex"] = String(i);
     tr.classList.toggle("is-active", activeMissionIndex === i);
+    const typeOptions = (["wp.takeoff", "wp.waypt", "wp.land"] as WaypointType[]).map((type) => `
+          <button class="wp-type-btn ${type === wp.type ? "is-active" : ""}" type="button" data-wp-type="${type}">
+            ${escapeHtml(t(type))}
+          </button>
+        `).join("");
     tr.innerHTML = `
-      <td>${(i + 1).toString().padStart(2, "0")}</td>
-      <td>
-        <select class="wp-field" data-wp-field="type" aria-label="Waypoint type">
-          ${(["wp.takeoff", "wp.waypt", "wp.land"] as WaypointType[]).map((type) =>
-            `<option value="${type}" ${type === wp.type ? "selected" : ""}>${escapeHtml(t(type))}</option>`
-          ).join("")}
-        </select>
+      <td class="wp-idx">${(i + 1).toString().padStart(2, "0")}</td>
+      <td class="wp-type-cell">
+        <div class="wp-type-toggle" role="group" aria-label="Waypoint type">
+          ${typeOptions}
+        </div>
       </td>
       <td><input class="wp-field" data-wp-field="lat" type="number" step="0.000001" value="${wp.lat.toFixed(6)}"></td>
       <td><input class="wp-field" data-wp-field="lon" type="number" step="0.000001" value="${wp.lon.toFixed(6)}"></td>
-      <td><input class="wp-field wp-field--alt" data-wp-field="alt" type="number" step="1" min="0" value="${wp.alt}"><span class="wp-unit">m</span></td>
-      <td><button class="wp-delete" type="button" data-wp-delete="${i}" aria-label="Delete waypoint">×</button></td>
+      <td class="wp-alt-cell"><div class="wp-alt-wrap"><input class="wp-field wp-field--alt" data-wp-field="alt" type="number" step="1" min="0" value="${wp.alt}"><span class="wp-unit">m</span></div></td>
+      <td class="wp-action-cell"><button class="wp-delete" type="button" data-wp-delete="${i}" aria-label="Delete waypoint">×</button></td>
     `;
     tbody.appendChild(tr);
   }
-  const summary = $<HTMLElement>("[data-mission='summary']");
-  if (summary) summary.textContent = t("mission.summary", waypoints.length, 0);
-  const planned = $<HTMLElement>("[data-mission='planned']");
-  if (planned) planned.textContent = t("mission.planned", waypoints.length);
+  renderMissionSummary();
   renderMissionPlate();
   renderAltitudeProfile();
   renderTerrainRelative();
@@ -2313,8 +2590,11 @@ function clearWaypoints(): void {
 
 function uploadPlan(): void {
   const v = activeVehicle();
-  if (waypoints.length === 0) {
-    pushLog("warn", "log.tag.cmd", "log.msg.command_rejected_no_plan", v.callsign);
+  const validation = validateMissionPlan();
+  if (validation) {
+    pushLog("warn", "log.tag.cmd", "log.msg.plan_invalid", validation);
+    renderMissionSummary();
+    renderCommandControls();
     return;
   }
   if (sendBridge({ type: "uploadPlan", id: v.id, waypoints: waypoints.map(waypointToServer) })) {
@@ -2367,8 +2647,10 @@ function renderMissionPlate(): void {
   setText("[data-mission='eta']", waypoints.length > 1 ? `${Math.max(1, Math.ceil(distance / 8 / 60))} min` : "—");
   setText("[data-mission='alt-min']", alts.length ? `${Math.min(...alts)} m` : "—");
   setText("[data-mission='alt-max']", alts.length ? `${Math.max(...alts)} m` : "—");
+  renderMissionSummary();
   renderAltitudeProfile();
   renderTerrainRelative();
+  scheduleOperationalMapFit();
 }
 
 function renderMissionActiveState(): void {
@@ -2395,10 +2677,33 @@ function handleWaypointTableInput(target: EventTarget | null): void {
     if (field === "lat") wp.lat = clamp(parsed, -90, 90);
     if (field === "lon") wp.lon = clamp(parsed, -180, 180);
     if (field === "alt") wp.alt = clamp(Math.round(parsed), 0, 500);
+    if (target instanceof HTMLInputElement) {
+      if (field === "lat") target.value = wp.lat.toFixed(6);
+      if (field === "lon") target.value = wp.lon.toFixed(6);
+      if (field === "alt") target.value = String(wp.alt);
+    }
   }
   markMissionDirty();
+  renderMissionSummary();
   renderMissionPlate();
   pushLog("info", "log.tag.model", "log.msg.plan_update", index + 1);
+}
+
+function handleWaypointTypeClick(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  const btn = target.closest<HTMLButtonElement>("[data-wp-type]");
+  if (!btn) return false;
+  const row = btn.closest<HTMLTableRowElement>("tr[data-wp-index]");
+  const type = btn.dataset["wpType"] as WaypointType | undefined;
+  if (!row || !type) return false;
+  const index = Number(row.dataset["wpIndex"]);
+  const wp = waypoints[index];
+  if (!wp || wp.type === type) return true;
+  wp.type = type;
+  markMissionDirty();
+  renderWaypointTable();
+  pushLog("info", "log.tag.model", "log.msg.plan_update", index + 1);
+  return true;
 }
 
 function handleWaypointDelete(target: EventTarget | null): void {
@@ -2430,6 +2735,102 @@ function addWaypointFromMissionPlate(ev: MouseEvent): void {
 
 // ---------- 12. Settings + lang ----------
 
+function transportFromLink(link: VehicleLink): Transport {
+  if (link.mode === "via-mission") return "mission";
+  return link.transport === "udp" ? "udp" : "serial";
+}
+
+function settingsFromLink(link: VehicleLink): Partial<AppSettings> {
+  if (link.mode === "via-mission") {
+    return { missionHost: link.endpoint };
+  }
+  if (link.transport === "udp") {
+    const [host, port] = link.endpoint.split(":");
+    return {
+      udpHost: host || state.settings.udpHost,
+      udpPort: port || state.settings.udpPort,
+    };
+  }
+  const [port, baud] = link.endpoint.split("@").map((part) => part.trim());
+  return {
+    serialPort: port && port !== "—" ? port : state.settings.serialPort,
+    baud: baud || state.settings.baud,
+  };
+}
+
+function linkFromSettings(): VehicleLink {
+  if (state.transport === "mission") {
+    return {
+      mode: "via-mission",
+      transport: "ws",
+      endpoint: state.settings.missionHost.trim() || "airyn-mission.local:7700",
+    };
+  }
+  if (state.transport === "udp") {
+    return {
+      mode: "direct",
+      transport: "udp",
+      endpoint: `${state.settings.udpHost.trim() || "127.0.0.1"}:${state.settings.udpPort.trim() || "14550"}`,
+    };
+  }
+  return {
+    mode: "direct",
+    transport: "serial",
+    endpoint: `${state.settings.serialPort || "—"} @ ${state.settings.baud || "921600"}`,
+  };
+}
+
+function setSettingValue(name: keyof AppSettings, value: string): void {
+  state.settings[name] = value.trim();
+}
+
+function syncSettingsFromControls(): void {
+  $$<HTMLInputElement | HTMLSelectElement>("[data-setting]").forEach((control) => {
+    const name = control.dataset["setting"] as keyof AppSettings | undefined;
+    if (name) setSettingValue(name, control.value);
+  });
+}
+
+function renderSettingsControls(): void {
+  $$<HTMLInputElement | HTMLSelectElement>("[data-setting]").forEach((control) => {
+    const name = control.dataset["setting"] as keyof AppSettings | undefined;
+    if (name && control.value !== state.settings[name]) control.value = state.settings[name];
+  });
+  $$<HTMLLabelElement>(".radio[data-transport]").forEach((r) => {
+    const active = r.dataset["transport"] === state.transport;
+    r.classList.toggle("is-active", active);
+    const input = r.querySelector<HTMLInputElement>("input[type='radio']");
+    if (input) input.checked = active;
+  });
+  const langSelect = $<HTMLSelectElement>("[data-bind='lang']");
+  if (langSelect) langSelect.value = state.lang;
+}
+
+function applyActiveVehicleLink(send = true): void {
+  const v = activeVehicle();
+  if (!v) return;
+  syncSettingsFromControls();
+  const link = linkFromSettings();
+  v.link = link;
+  persist();
+  renderLinkPath();
+  renderConnectButton();
+  renderFleetChips();
+  renderActive();
+  refreshTransportStatusFromActive();
+  if (send) {
+    sendBridge({ type: "configureLink", id: v.id, link });
+  }
+}
+
+function loadSettingsFromActiveVehicle(): void {
+  const v = activeVehicle();
+  if (!v) return;
+  state.transport = transportFromLink(v.link);
+  state.settings = { ...state.settings, ...settingsFromLink(v.link) };
+  renderSettingsControls();
+}
+
 function setLang(lang: Lang): void {
   state.lang = lang;
   persist();
@@ -2445,6 +2846,7 @@ function setLang(lang: Lang): void {
   renderCalPrompt();
   renderWaypointTable();
   renderLog();
+  renderSettingsControls();
 
   $$<HTMLButtonElement>(".lang-toggle[data-lang]").forEach((el) => {
     el.classList.toggle("is-active", el.dataset["lang"] === lang);
@@ -2453,12 +2855,10 @@ function setLang(lang: Lang): void {
   pushLog("info", "log.tag.ui", "log.msg.lang_switch", lang === "zh" ? "繁體中文" : "English");
 }
 
-function setTransport(tr: Transport): void {
+function setTransport(tr: Transport, send = true): void {
   state.transport = tr;
-  persist();
-  $$<HTMLLabelElement>(".radio[data-transport]").forEach((r) => {
-    r.classList.toggle("is-active", r.dataset["transport"] === tr);
-  });
+  renderSettingsControls();
+  applyActiveVehicleLink(send);
 }
 
 // ---------- 13. Init ----------
@@ -2491,6 +2891,7 @@ function bind(): void {
   });
   // Settings connect / disconnect — same scope (active vehicle).
   $<HTMLElement>("[data-action='settings-connect']")?.addEventListener("click", () => {
+    applyActiveVehicleLink();
     setActiveVehicleConnected(true);
   });
   $<HTMLElement>("[data-action='settings-disconnect']")?.addEventListener("click", () => {
@@ -2532,6 +2933,7 @@ function bind(): void {
     handleWaypointTableInput(ev.target);
   });
   $<HTMLTableSectionElement>(".wp-table tbody")?.addEventListener("click", (ev) => {
+    if (handleWaypointTypeClick(ev.target)) return;
     handleWaypointDelete(ev.target);
   });
 
@@ -2551,6 +2953,13 @@ function bind(): void {
       if (tr) setTransport(tr);
     });
   });
+  $$<HTMLInputElement | HTMLSelectElement>("[data-setting]").forEach((control) => {
+    control.addEventListener("change", () => applyActiveVehicleLink());
+  });
+  $<HTMLSelectElement>("[data-bind='lang']")?.addEventListener("change", (ev) => {
+    const lang = (ev.target as HTMLSelectElement).value as Lang;
+    if (lang === "zh" || lang === "en") setLang(lang);
+  });
 
   // Lang toggle
   $$<HTMLButtonElement>(".lang-toggle[data-lang]").forEach((b) => {
@@ -2566,15 +2975,19 @@ function bind(): void {
     if (target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement) {
       return;
     }
-    if (ev.key.toLowerCase() === "n") {
-      ev.preventDefault();
-      newWaypoint();
-    } else if (ev.ctrlKey && ev.key.toLowerCase() === "u") {
+    const key = ev.key.toLowerCase();
+    if ((ev.ctrlKey || ev.metaKey) && key === "u") {
       ev.preventDefault();
       uploadPlan();
-    } else if (ev.ctrlKey && ev.key.toLowerCase() === "d") {
+    } else if ((ev.ctrlKey || ev.metaKey) && key === "d") {
       ev.preventDefault();
       downloadPlan();
+    } else if (!ev.ctrlKey && !ev.metaKey && !ev.altKey && COMMAND_KEYMAP[key]) {
+      ev.preventDefault();
+      sendVehicleCommand(COMMAND_KEYMAP[key]!);
+    } else if (key === "n") {
+      ev.preventDefault();
+      newWaypoint();
     } else if (ev.key === " ") {
       ev.preventDefault();
       calCapture();
@@ -2594,7 +3007,7 @@ function init(): void {
   bind();
   applyI18n();
   setLang(state.lang); // applies lang toggle active class
-  setTransport(state.transport);
+  setTransport(state.transport, false);
   setCam(state.cam);
   initMap();
   renderFleetChips();
