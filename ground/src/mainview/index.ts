@@ -25,10 +25,11 @@ type LogFilter = "all" | LogLevel;
 type VehicleColor = "ochre" | "ice" | "ok";
 type LinkMode = "direct" | "via-mission";
 type LinkTransport = "serial" | "udp" | "tcp" | "ws";
-type VehicleMode = "standby" | "manual" | "hold" | "mission" | "rtl" | "land";
+type VehicleMode = "standby" | "manual" | "takeoff" | "hold" | "mission" | "rtl" | "land";
 type SafetyState = "offline" | "preflight" | "armed" | "failsafe";
-type VehicleCommand = "arm" | "disarm" | "hold" | "mission" | "rtl" | "land" | "kill";
+type VehicleCommand = "arm" | "disarm" | "takeoff" | "hold" | "mission" | "rtl" | "land" | "kill";
 type WaypointType = "wp.takeoff" | "wp.waypt" | "wp.land";
+type ChecklistKey = "areaClear" | "operatorReady";
 
 const VIEW_NAMES = ["combined", "cameras", "sensors", "mission", "calibration", "log", "settings"] as const;
 type ViewName = typeof VIEW_NAMES[number];
@@ -36,6 +37,7 @@ type ViewName = typeof VIEW_NAMES[number];
 const COMMAND_LABEL_KEYS: Record<VehicleCommand, string> = {
   arm: "btn.arm",
   disarm: "btn.disarm",
+  takeoff: "btn.takeoff",
   hold: "btn.hold",
   mission: "btn.mission_start",
   rtl: "btn.rtl",
@@ -46,6 +48,7 @@ const COMMAND_LABEL_KEYS: Record<VehicleCommand, string> = {
 const COMMAND_META_KEYS: Record<VehicleCommand, string> = {
   arm: "btn.arm.meta",
   disarm: "btn.disarm.meta",
+  takeoff: "btn.takeoff.meta",
   hold: "btn.hold.meta",
   mission: "btn.mission_start.meta",
   rtl: "btn.rtl.meta",
@@ -55,6 +58,7 @@ const COMMAND_META_KEYS: Record<VehicleCommand, string> = {
 
 const COMMAND_SHORTCUTS: Record<VehicleCommand, string> = {
   arm: "A",
+  takeoff: "T",
   hold: "H",
   mission: "M",
   rtl: "R",
@@ -65,6 +69,7 @@ const COMMAND_SHORTCUTS: Record<VehicleCommand, string> = {
 
 const COMMAND_KEYMAP: Record<string, VehicleCommand> = {
   a: "arm",
+  t: "takeoff",
   h: "hold",
   m: "mission",
   r: "rtl",
@@ -155,6 +160,8 @@ interface State {
   vehicles: Vehicle[];
   activeVehicleId: string;
   settings: AppSettings;
+  preflightChecklist: Record<ChecklistKey, boolean>;
+  missionDefaultAlt: number;
 }
 
 interface AppSettings {
@@ -204,6 +211,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "val.armed.yes": "是",
     "mode.standby": "待命",
     "mode.manual": "手動",
+    "mode.takeoff": "起飛",
     "mode.hold": "位置保持",
     "mode.mission": "任務",
     "mode.rtl": "返航",
@@ -223,6 +231,8 @@ const dicts: Record<Lang, Record<string, string>> = {
     "btn.disconnect_locked.meta": "先降落或解除武裝",
     "btn.arm": "武裝",
     "btn.arm.meta": "允許馬達輸出",
+    "btn.takeoff": "起飛",
+    "btn.takeoff.meta": "檢查後爬升",
     "btn.disarm": "解除武裝",
     "btn.disarm.meta": "停止一般輸出",
     "btn.hold": "保持位置",
@@ -240,11 +250,21 @@ const dicts: Record<Lang, Record<string, string>> = {
     "cmd.reason.offline": "載具離線",
     "cmd.reason.link_lost": "空地鏈路中斷",
     "cmd.reason.preflight": "起飛前檢查未通過",
+    "cmd.reason.checklist": "完成起飛前檢查",
     "cmd.reason.already_armed": "已武裝",
     "cmd.reason.disarmed": "尚未武裝",
     "cmd.reason.plan_dirty": "任務已修改，需重新上傳",
     "cmd.reason.no_upload": "尚未上傳任務",
     "cmd.shortcut": "快捷鍵 {0}",
+    "check.title": "起飛前檢查",
+    "check.link": "遙測連線",
+    "check.gps": "GPS 定位",
+    "check.battery": "電池電壓",
+    "check.mission": "任務已上傳",
+    "check.area": "起飛區清空",
+    "check.operator": "操作員已確認",
+    "check.ready": "可起飛",
+    "check.pending": "待確認",
 
     "tab.map": "地圖",
     "tab.combined": "主控",
@@ -385,6 +405,11 @@ const dicts: Record<Lang, Record<string, string>> = {
     "mission.col.lon": "經度",
     "mission.col.alt": "高度",
     "mission.col.actions": "動作",
+    "mission.defaults": "預設",
+    "mission.default_alt": "高度",
+    "mission.apply_alt": "套用高度",
+    "mission.apply_alt.meta": "非降落點",
+    "mission.drag_wp": "拖曳航點 {0}",
     "mission.uploaded": "{0} 個已上傳",
     "mission.summary.invalid": "{0} 個航點 · 需修正",
     "mission.invalid.empty": "任務需要至少 2 個航點",
@@ -466,6 +491,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.plan_download": "已匯出計畫 · {0} 航點",
     "log.msg.plan_update": "已更新航點 · #{0}",
     "log.msg.plan_delete": "已刪除航點 · #{0}",
+    "log.msg.plan_apply_alt": "已套用任務高度 · {0} m",
     "log.msg.command_sent": "已送出指令 · {0}",
     "log.msg.command_rejected_reason": "指令未執行 · {0} · {1}",
     "log.msg.kill_confirm": "{0} 馬達切斷需二次確認：3 秒內再按一次",
@@ -476,6 +502,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.arm_rejected": "{0} 起飛前檢查未通過，拒絕武裝",
     "log.msg.command_arm": "{0} 已武裝",
     "log.msg.command_disarm": "{0} 已解除武裝",
+    "log.msg.command_takeoff": "{0} 起飛至 {1} m",
     "log.msg.command_hold": "{0} 進入位置保持",
     "log.msg.command_mission": "{0} 開始執行任務 · {1} 航點",
     "log.msg.command_rtl": "{0} 返航中",
@@ -548,6 +575,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "val.armed.yes": "YES",
     "mode.standby": "STANDBY",
     "mode.manual": "MANUAL",
+    "mode.takeoff": "TAKEOFF",
     "mode.hold": "HOLD",
     "mode.mission": "MISSION",
     "mode.rtl": "RTL",
@@ -567,6 +595,8 @@ const dicts: Record<Lang, Record<string, string>> = {
     "btn.disconnect_locked.meta": "LAND OR DISARM FIRST",
     "btn.arm": "ARM",
     "btn.arm.meta": "ENABLE MOTORS",
+    "btn.takeoff": "TAKEOFF",
+    "btn.takeoff.meta": "CHECK THEN CLIMB",
     "btn.disarm": "DISARM",
     "btn.disarm.meta": "STOP NORMAL OUTPUT",
     "btn.hold": "HOLD",
@@ -584,11 +614,21 @@ const dicts: Record<Lang, Record<string, string>> = {
     "cmd.reason.offline": "vehicle offline",
     "cmd.reason.link_lost": "air-ground link lost",
     "cmd.reason.preflight": "preflight not passed",
+    "cmd.reason.checklist": "complete preflight checklist",
     "cmd.reason.already_armed": "already armed",
     "cmd.reason.disarmed": "not armed",
     "cmd.reason.plan_dirty": "plan changed; upload again",
     "cmd.reason.no_upload": "no uploaded mission",
     "cmd.shortcut": "shortcut {0}",
+    "check.title": "PREFLIGHT CHECK",
+    "check.link": "Telemetry link",
+    "check.gps": "GPS fix",
+    "check.battery": "Battery voltage",
+    "check.mission": "Mission uploaded",
+    "check.area": "Takeoff area clear",
+    "check.operator": "Operator confirmed",
+    "check.ready": "READY",
+    "check.pending": "PENDING",
 
     "tab.map": "MAP",
     "tab.combined": "COMBINED",
@@ -729,6 +769,11 @@ const dicts: Record<Lang, Record<string, string>> = {
     "mission.col.lon": "LON",
     "mission.col.alt": "ALT",
     "mission.col.actions": "ACTIONS",
+    "mission.defaults": "DEFAULTS",
+    "mission.default_alt": "ALT",
+    "mission.apply_alt": "APPLY ALT",
+    "mission.apply_alt.meta": "NON-LAND ITEMS",
+    "mission.drag_wp": "Drag waypoint {0}",
     "mission.uploaded": "{0} UPLOADED",
     "mission.summary.invalid": "{0} WAYPOINTS · FIX NEEDED",
     "mission.invalid.empty": "mission needs at least 2 waypoints",
@@ -810,6 +855,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.plan_download": "Plan exported · {0} waypoints",
     "log.msg.plan_update": "Waypoint updated · #{0}",
     "log.msg.plan_delete": "Waypoint deleted · #{0}",
+    "log.msg.plan_apply_alt": "Applied mission altitude · {0} m",
     "log.msg.command_sent": "Command sent · {0}",
     "log.msg.command_rejected_reason": "Command not run · {0} · {1}",
     "log.msg.kill_confirm": "{0} motor cut requires confirmation: press again within 3 seconds",
@@ -820,6 +866,7 @@ const dicts: Record<Lang, Record<string, string>> = {
     "log.msg.arm_rejected": "{0} preflight failed; arm rejected",
     "log.msg.command_arm": "{0} armed",
     "log.msg.command_disarm": "{0} disarmed",
+    "log.msg.command_takeoff": "{0} taking off to {1} m",
     "log.msg.command_hold": "{0} switched to hold",
     "log.msg.command_mission": "{0} started mission · {1} waypoints",
     "log.msg.command_rtl": "{0} returning home",
@@ -942,6 +989,11 @@ const initialState: State = {
   search: "",
   vehicles: makeFleet(),
   activeVehicleId: "v1",
+  preflightChecklist: {
+    areaClear: false,
+    operatorReady: false,
+  },
+  missionDefaultAlt: 30,
   settings: {
     serialPort: "COM3",
     baud: "921600",
@@ -974,6 +1026,15 @@ function loadState(): State {
     if (typeof stored.activeVehicleId === "string" && s.vehicles.some((v) => v.id === stored.activeVehicleId)) {
       s.activeVehicleId = stored.activeVehicleId;
     }
+    if (stored.preflightChecklist && typeof stored.preflightChecklist === "object") {
+      s.preflightChecklist = {
+        areaClear: stored.preflightChecklist.areaClear === true,
+        operatorReady: stored.preflightChecklist.operatorReady === true,
+      };
+    }
+    if (typeof stored.missionDefaultAlt === "number" && Number.isFinite(stored.missionDefaultAlt)) {
+      s.missionDefaultAlt = clamp(Math.round(stored.missionDefaultAlt), 5, 500);
+    }
     if (stored.settings && typeof stored.settings === "object") {
       s.settings = {
         serialPort: typeof stored.settings.serialPort === "string" ? stored.settings.serialPort : s.settings.serialPort,
@@ -1002,6 +1063,8 @@ function persist(): void {
       view: state.view,
       transport: state.transport,
       activeVehicleId: state.activeVehicleId,
+      preflightChecklist: state.preflightChecklist,
+      missionDefaultAlt: state.missionDefaultAlt,
       settings: state.settings,
     }));
   } catch {
@@ -1353,14 +1416,18 @@ function renderFleetChips(): void {
 
 let bridgeSocket: WebSocket | null = null;
 let bridgeRetryTimer: ReturnType<typeof setTimeout> | null = null;
+const pendingBridgeCommands: BridgeClientMessage[] = [];
 
 function bridgeUrl(): string {
   // Bridge port is fixed in shared/protocol; we hard-code it here so
   // the renderer doesn't need to import shared types at runtime.
-  return "ws://localhost:7711";
+  return "ws://127.0.0.1:7711";
 }
 
 function connectBridge(): void {
+  if (bridgeSocket && (bridgeSocket.readyState === 0 || bridgeSocket.readyState === 1)) {
+    return;
+  }
   if (bridgeRetryTimer) {
     clearTimeout(bridgeRetryTimer);
     bridgeRetryTimer = null;
@@ -1375,6 +1442,7 @@ function connectBridge(): void {
 
   bridgeSocket.addEventListener("open", () => {
     console.log("[airyn] bridge connected");
+    flushPendingBridgeCommands();
   });
   bridgeSocket.addEventListener("close", () => {
     console.warn("[airyn] bridge closed, retrying in 1.5s");
@@ -1402,8 +1470,45 @@ type BridgeClientMessage =
   | { type: "uploadPlan"; id: string; waypoints: ServerMissionWaypoint[] }
   | { type: "calibration"; id: string; step: number; capture: number; done: boolean };
 
-function sendBridge(cmd: BridgeClientMessage): boolean {
+function queueBridgeCommand(cmd: BridgeClientMessage): void {
+  if (cmd.type === "connect" || cmd.type === "disconnect") {
+    for (let i = pendingBridgeCommands.length - 1; i >= 0; i--) {
+      const queued = pendingBridgeCommands[i]!;
+      if ((queued.type === "connect" || queued.type === "disconnect") && queued.id === cmd.id) {
+        pendingBridgeCommands.splice(i, 1);
+      }
+    }
+  } else if (cmd.type === "configureLink") {
+    for (let i = pendingBridgeCommands.length - 1; i >= 0; i--) {
+      const queued = pendingBridgeCommands[i]!;
+      if (queued.type === "configureLink" && queued.id === cmd.id) {
+        pendingBridgeCommands.splice(i, 1);
+      }
+    }
+  }
+  pendingBridgeCommands.push(cmd);
+  if (pendingBridgeCommands.length > 20) pendingBridgeCommands.shift();
+}
+
+function flushPendingBridgeCommands(): void {
+  if (!bridgeSocket || bridgeSocket.readyState !== 1) return;
+  while (pendingBridgeCommands.length > 0) {
+    const cmd = pendingBridgeCommands.shift()!;
+    try {
+      bridgeSocket.send(JSON.stringify(cmd));
+    } catch {
+      queueBridgeCommand(cmd);
+      break;
+    }
+  }
+}
+
+function sendBridge(cmd: BridgeClientMessage, queueIfOffline = false): boolean {
   if (!bridgeSocket || bridgeSocket.readyState !== 1 /* OPEN */) {
+    if (queueIfOffline) {
+      queueBridgeCommand(cmd);
+      connectBridge();
+    }
     pushLog("warn", "log.tag.link", "log.msg.bridge_offline");
     return false;
   }
@@ -1797,7 +1902,7 @@ function setVehicleConnected(id: string, on: boolean): void {
     renderConnectButton();
     return;
   }
-  sendBridge({ type: on ? "connect" : "disconnect", id });
+  sendBridge({ type: on ? "connect" : "disconnect", id }, true);
 }
 
 function setActiveVehicleConnected(on: boolean): void {
@@ -1995,21 +2100,70 @@ function beginKillConfirmation(v: Vehicle): void {
   renderCommandControls();
 }
 
+function preflightChecklistReady(v: Vehicle): boolean {
+  return v.preflightOk && state.preflightChecklist.areaClear && state.preflightChecklist.operatorReady;
+}
+
+function renderPreflightChecklist(): void {
+  const v = activeVehicle();
+  const autoChecks = {
+    link: v.flight && v.linkActive,
+    gps: v.gpsActive && v.gpsSats >= 6 && v.gpsHdop < 3,
+    battery: v.vbat >= 18.5,
+    mission: v.missionUploaded && v.missionCount > 0 && !missionPlanDirty,
+  };
+  const stateEl = $<HTMLElement>(".check-state");
+  const ready = preflightChecklistReady(v);
+  if (stateEl) {
+    stateEl.textContent = ready ? t("check.ready") : t("check.pending");
+    stateEl.classList.toggle("state--ok", ready);
+    stateEl.classList.toggle("state--warn", !ready && v.flight);
+    stateEl.classList.toggle("state--off", !v.flight);
+  }
+  for (const [key, ok] of Object.entries(autoChecks)) {
+    const row = $<HTMLElement>(`[data-preflight-auto='${key}']`);
+    const value = row?.querySelector<HTMLElement>(".check-value");
+    if (!row || !value) continue;
+    row.classList.toggle("is-ok", ok);
+    row.classList.toggle("is-warn", !ok);
+    value.textContent = ok ? t("check.ready") : t("check.pending");
+  }
+  $$<HTMLInputElement>("[data-check]").forEach((input) => {
+    const key = input.dataset["check"] as ChecklistKey | undefined;
+    if (!key) return;
+    input.checked = state.preflightChecklist[key];
+    const row = input.closest<HTMLElement>(".check-row");
+    row?.classList.toggle("is-ok", input.checked);
+    row?.classList.toggle("is-warn", !input.checked);
+  });
+}
+
 function commandBlockedReason(command: VehicleCommand, v: Vehicle): string | null {
   if (!v.flight) return t("cmd.reason.offline");
   if (!v.linkActive) return t("cmd.reason.link_lost");
   if (command === "arm") {
     if (v.armed) return t("cmd.reason.already_armed");
     if (!v.preflightOk) return t("cmd.reason.preflight");
+    if (!preflightChecklistReady(v)) return t("cmd.reason.checklist");
     return null;
   }
-  if (!v.armed) return t("cmd.reason.disarmed");
+  if (command === "takeoff") {
+    if (!v.preflightOk) return t("cmd.reason.preflight");
+    if (!preflightChecklistReady(v)) return t("cmd.reason.checklist");
+    return null;
+  }
   if (command === "mission") {
     const validation = validateMissionPlan();
     if (validation) return validation;
     if (missionPlanDirty) return t("cmd.reason.plan_dirty");
     if (!v.missionUploaded || v.missionCount <= 0) return t("cmd.reason.no_upload");
+    if (!v.armed) {
+      if (!v.preflightOk) return t("cmd.reason.preflight");
+      if (!preflightChecklistReady(v)) return t("cmd.reason.checklist");
+    }
+    return null;
   }
+  if (!v.armed) return t("cmd.reason.disarmed");
   return null;
 }
 
@@ -2032,6 +2186,7 @@ function renderCommandControls(): void {
     btn.disabled = !enabled;
     const active =
       (command === "hold" && v.mode === "hold") ||
+      (command === "takeoff" && v.mode === "takeoff") ||
       (command === "mission" && v.mode === "mission") ||
       (command === "rtl" && v.mode === "rtl") ||
       (command === "land" && v.mode === "land") ||
@@ -2054,6 +2209,7 @@ function renderCommandControls(): void {
     btn.setAttribute("aria-disabled", enabled ? "false" : "true");
     btn.title = title;
   });
+  renderPreflightChecklist();
 }
 
 function renderActiveLinkRail(): void {
@@ -2257,6 +2413,15 @@ interface Waypoint {
   alt: number;
 }
 
+interface WaypointDragState {
+  index: number;
+  pointerId: number;
+  marker: HTMLButtonElement;
+  moved: boolean;
+  startX: number;
+  startY: number;
+}
+
 const waypoints: Waypoint[] = [
   { type: "wp.takeoff", lat: 24.7867, lon: 121.0089, alt: 5 },
   { type: "wp.waypt",   lat: 24.7902, lon: 121.0153, alt: 30 },
@@ -2264,6 +2429,8 @@ const waypoints: Waypoint[] = [
 ];
 
 let missionPlanDirty = true;
+let waypointDrag: WaypointDragState | null = null;
+let suppressMissionPlateClick = false;
 
 const missionBounds = {
   latMin: 24.7825,
@@ -2294,7 +2461,18 @@ function waypointToPlate(wp: Waypoint): { x: number; y: number } {
 function waypointFromPlate(xPct: number, yPct: number): Waypoint {
   const lon = missionBounds.lonMin + (clamp(xPct, 0, 100) / 100) * (missionBounds.lonMax - missionBounds.lonMin);
   const lat = missionBounds.latMin + ((100 - clamp(yPct, 0, 100)) / 100) * (missionBounds.latMax - missionBounds.latMin);
-  return { type: "wp.waypt", lat, lon, alt: 30 };
+  return { type: "wp.waypt", lat, lon, alt: state.missionDefaultAlt };
+}
+
+function missionPlatePoint(clientX: number, clientY: number): { xPct: number; yPct: number; lat: number; lon: number } | null {
+  const plate = $<HTMLElement>(".plate--mission");
+  if (!plate) return null;
+  const rect = plate.getBoundingClientRect();
+  if (rect.width <= 0 || rect.height <= 0) return null;
+  const xPct = clamp(((clientX - rect.left) / rect.width) * 100, 0, 100);
+  const yPct = clamp(((clientY - rect.top) / rect.height) * 100, 0, 100);
+  const wp = waypointFromPlate(xPct, yPct);
+  return { xPct, yPct, lat: wp.lat, lon: wp.lon };
 }
 
 function haversineMeters(a: Waypoint, b: Waypoint): number {
@@ -2522,6 +2700,27 @@ function markMissionDirty(): void {
   renderCommandControls();
 }
 
+function renderMissionDefaults(): void {
+  const input = $<HTMLInputElement>("[data-mission-default='alt']");
+  if (input && document.activeElement !== input) input.value = String(state.missionDefaultAlt);
+}
+
+function setMissionDefaultAltitude(value: number): void {
+  if (!Number.isFinite(value)) return;
+  state.missionDefaultAlt = clamp(Math.round(value), 5, 500);
+  persist();
+  renderMissionDefaults();
+}
+
+function applyDefaultAltitudeToWaypoints(): void {
+  for (const wp of waypoints) {
+    if (wp.type !== "wp.land") wp.alt = state.missionDefaultAlt;
+  }
+  markMissionDirty();
+  renderWaypointTable();
+  pushLog("info", "log.tag.model", "log.msg.plan_apply_alt", state.missionDefaultAlt);
+}
+
 function renderMissionSummary(): void {
   const validation = validateMissionPlan();
   const summary = $<HTMLElement>("[data-mission='summary']");
@@ -2538,6 +2737,7 @@ function renderWaypointTable(): void {
   const tbody = $<HTMLTableSectionElement>(".wp-table tbody");
   if (!tbody) return;
   tbody.innerHTML = "";
+  renderMissionDefaults();
   const activeMissionIndex = activeVehicle().missionActiveIndex;
   for (let i = 0; i < waypoints.length; i++) {
     const wp = waypoints[i]!;
@@ -2563,10 +2763,7 @@ function renderWaypointTable(): void {
     `;
     tbody.appendChild(tr);
   }
-  renderMissionSummary();
   renderMissionPlate();
-  renderAltitudeProfile();
-  renderTerrainRelative();
 }
 
 function newWaypoint(): void {
@@ -2575,7 +2772,7 @@ function newWaypoint(): void {
   const last = waypoints[insertAt - 1] ?? waypoints[waypoints.length - 1] ?? activeVehicle();
   const lat = "lat" in last ? last.lat + 0.001 : 24.7867;
   const lon = "lon" in last ? last.lon + 0.001 : 121.0089;
-  waypoints.splice(insertAt, 0, { type: "wp.waypt", lat, lon, alt: 30 });
+  waypoints.splice(insertAt, 0, { type: "wp.waypt", lat, lon, alt: state.missionDefaultAlt });
   markMissionDirty();
   renderWaypointTable();
   pushLog("info", "log.tag.model", "log.msg.plan_new", insertAt + 1);
@@ -2619,28 +2816,13 @@ function downloadPlan(): void {
   pushLog("info", "log.tag.model", "log.msg.plan_download", waypoints.length);
 }
 
-function renderMissionPlate(): void {
+function renderMissionPath(): void {
   const points = waypoints.map(waypointToPlate);
-  const activeMissionIndex = activeVehicle().missionActiveIndex;
   const path = document.querySelector<SVGPolylineElement>("[data-mission-path]");
   if (path) path.setAttribute("points", points.map((p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" "));
+}
 
-  const plate = $<HTMLElement>(".plate--mission");
-  if (plate) {
-    plate.querySelectorAll(".wp").forEach((el) => el.remove());
-    points.forEach((p, i) => {
-      const marker = document.createElement("button");
-      marker.type = "button";
-      marker.className = "wp";
-      marker.classList.toggle("is-active", activeMissionIndex === i);
-      marker.dataset["wpIndex"] = String(i);
-      marker.style.left = `${p.x}%`;
-      marker.style.top = `${p.y}%`;
-      marker.innerHTML = `<em>${(i + 1).toString().padStart(2, "0")}</em>`;
-      plate.appendChild(marker);
-    });
-  }
-
+function renderMissionStats(fitMap = false): void {
   const distance = missionDistanceMeters();
   const alts = waypoints.map((wp) => wp.alt);
   setText("[data-mission='dist']", `${(distance / 1000).toFixed(2)} km`);
@@ -2650,7 +2832,32 @@ function renderMissionPlate(): void {
   renderMissionSummary();
   renderAltitudeProfile();
   renderTerrainRelative();
-  scheduleOperationalMapFit();
+  if (fitMap) scheduleOperationalMapFit();
+}
+
+function renderMissionPlate(): void {
+  const points = waypoints.map(waypointToPlate);
+  const activeMissionIndex = activeVehicle().missionActiveIndex;
+  renderMissionPath();
+  const plate = $<HTMLElement>(".plate--mission");
+  if (plate) {
+    plate.querySelectorAll(".wp").forEach((el) => el.remove());
+    points.forEach((p, i) => {
+      const marker = document.createElement("button");
+      marker.type = "button";
+      marker.className = "wp";
+      marker.classList.toggle("is-active", activeMissionIndex === i);
+      marker.dataset["wpIndex"] = String(i);
+      marker.setAttribute("aria-label", t("mission.drag_wp", i + 1));
+      marker.title = t("mission.drag_wp", i + 1);
+      marker.style.left = `${p.x}%`;
+      marker.style.top = `${p.y}%`;
+      marker.innerHTML = `<em>${(i + 1).toString().padStart(2, "0")}</em>`;
+      plate.appendChild(marker);
+    });
+  }
+
+  renderMissionStats(true);
 }
 
 function renderMissionActiveState(): void {
@@ -2718,16 +2925,92 @@ function handleWaypointDelete(target: EventTarget | null): void {
   pushLog("warn", "log.tag.model", "log.msg.plan_delete", index + 1);
 }
 
+function beginWaypointDrag(ev: PointerEvent): void {
+  if (ev.button !== 0) return;
+  if (!(ev.target instanceof HTMLElement)) return;
+  const marker = ev.target.closest(".wp");
+  if (!(marker instanceof HTMLButtonElement)) return;
+  const index = Number(marker.dataset["wpIndex"]);
+  if (!Number.isInteger(index) || !waypoints[index]) return;
+
+  ev.preventDefault();
+  ev.stopPropagation();
+  suppressMissionPlateClick = true;
+  waypointDrag = {
+    index,
+    pointerId: ev.pointerId,
+    marker,
+    moved: false,
+    startX: ev.clientX,
+    startY: ev.clientY,
+  };
+  marker.classList.add("is-dragging");
+  $<HTMLElement>(".plate--mission")?.classList.add("is-dragging");
+  try {
+    marker.setPointerCapture(ev.pointerId);
+  } catch {
+    // Some embedded webviews can reject pointer capture after fast DOM changes.
+  }
+}
+
+function moveWaypointDrag(ev: PointerEvent): void {
+  const drag = waypointDrag;
+  if (!drag || ev.pointerId !== drag.pointerId) return;
+  const point = missionPlatePoint(ev.clientX, ev.clientY);
+  const wp = waypoints[drag.index];
+  if (!point || !wp) return;
+
+  const dx = ev.clientX - drag.startX;
+  const dy = ev.clientY - drag.startY;
+  if (!drag.moved && Math.hypot(dx, dy) < 2) return;
+  ev.preventDefault();
+
+  drag.moved = true;
+  wp.lat = point.lat;
+  wp.lon = point.lon;
+  const platePoint = waypointToPlate(wp);
+  drag.marker.style.left = `${platePoint.x}%`;
+  drag.marker.style.top = `${platePoint.y}%`;
+  if (!missionPlanDirty) markMissionDirty();
+  else missionPlanDirty = true;
+  renderMissionPath();
+  renderMissionStats(false);
+}
+
+function endWaypointDrag(ev: PointerEvent): void {
+  const drag = waypointDrag;
+  if (!drag || ev.pointerId !== drag.pointerId) return;
+  ev.preventDefault();
+  drag.marker.classList.remove("is-dragging");
+  $<HTMLElement>(".plate--mission")?.classList.remove("is-dragging");
+  try {
+    if (drag.marker.hasPointerCapture(ev.pointerId)) drag.marker.releasePointerCapture(ev.pointerId);
+  } catch {
+    // Pointer capture may already be gone after pointercancel.
+  }
+  const changed = drag.moved && Boolean(waypoints[drag.index]);
+  const index = drag.index;
+  waypointDrag = null;
+  if (changed) {
+    renderWaypointTable();
+    pushLog("info", "log.tag.model", "log.msg.plan_update", index + 1);
+  }
+  window.setTimeout(() => {
+    suppressMissionPlateClick = false;
+  }, 0);
+}
+
 function addWaypointFromMissionPlate(ev: MouseEvent): void {
+  if (suppressMissionPlateClick) {
+    suppressMissionPlateClick = false;
+    return;
+  }
   if (ev.target instanceof HTMLElement && ev.target.closest(".wp")) return;
-  const plate = $<HTMLElement>(".plate--mission");
-  if (!plate) return;
-  const rect = plate.getBoundingClientRect();
-  const xPct = ((ev.clientX - rect.left) / rect.width) * 100;
-  const yPct = ((ev.clientY - rect.top) / rect.height) * 100;
+  const point = missionPlatePoint(ev.clientX, ev.clientY);
+  if (!point) return;
   const landAtEnd = waypoints[waypoints.length - 1]?.type === "wp.land";
   const insertAt = landAtEnd ? Math.max(0, waypoints.length - 1) : waypoints.length;
-  waypoints.splice(insertAt, 0, waypointFromPlate(xPct, yPct));
+  waypoints.splice(insertAt, 0, waypointFromPlate(point.xPct, point.yPct));
   markMissionDirty();
   renderWaypointTable();
   pushLog("info", "log.tag.model", "log.msg.plan_new", insertAt + 1);
@@ -2819,7 +3102,7 @@ function applyActiveVehicleLink(send = true): void {
   renderActive();
   refreshTransportStatusFromActive();
   if (send) {
-    sendBridge({ type: "configureLink", id: v.id, link });
+    sendBridge({ type: "configureLink", id: v.id, link }, true);
   }
 }
 
@@ -2928,7 +3211,16 @@ function bind(): void {
   $<HTMLElement>("[data-action='wp-clear']")?.addEventListener("click", clearWaypoints);
   $<HTMLElement>("[data-action='wp-upload']")?.addEventListener("click", uploadPlan);
   $<HTMLElement>("[data-action='wp-download']")?.addEventListener("click", downloadPlan);
-  $<HTMLElement>(".plate--mission")?.addEventListener("click", addWaypointFromMissionPlate);
+  $<HTMLElement>("[data-action='wp-apply-alt']")?.addEventListener("click", applyDefaultAltitudeToWaypoints);
+  $<HTMLInputElement>("[data-mission-default='alt']")?.addEventListener("change", (ev) => {
+    setMissionDefaultAltitude(Number((ev.target as HTMLInputElement).value));
+  });
+  const missionPlate = $<HTMLElement>(".plate--mission");
+  missionPlate?.addEventListener("pointerdown", beginWaypointDrag);
+  missionPlate?.addEventListener("click", addWaypointFromMissionPlate);
+  window.addEventListener("pointermove", moveWaypointDrag);
+  window.addEventListener("pointerup", endWaypointDrag);
+  window.addEventListener("pointercancel", endWaypointDrag);
   $<HTMLTableSectionElement>(".wp-table tbody")?.addEventListener("change", (ev) => {
     handleWaypointTableInput(ev.target);
   });
@@ -2942,6 +3234,15 @@ function bind(): void {
     btn.addEventListener("click", () => {
       const command = btn.dataset["command"] as VehicleCommand | undefined;
       if (command) sendVehicleCommand(command);
+    });
+  });
+  $$<HTMLInputElement>("[data-check]").forEach((input) => {
+    input.addEventListener("change", () => {
+      const key = input.dataset["check"] as ChecklistKey | undefined;
+      if (!key) return;
+      state.preflightChecklist[key] = input.checked;
+      persist();
+      renderCommandControls();
     });
   });
 

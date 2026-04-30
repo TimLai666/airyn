@@ -203,6 +203,69 @@ button:focus-visible,
   min-width: 0;
 }
 
+.fleet-dock {
+  flex: 0 0 auto;
+  min-width: 0;
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  border: 1px solid var(--rule);
+  background: rgba(241, 232, 218, 0.025);
+  overflow: hidden;
+}
+
+.fleet-dock-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 158px;
+  white-space: nowrap;
+}
+
+.fleet-dock-key {
+  font-family: var(--font-display);
+  font-size: 11px;
+  letter-spacing: 0.10em;
+  color: var(--text-sec);
+  font-weight: 700;
+}
+
+.fleet-dock .fleet-meta {
+  margin-left: 0;
+  font-size: 10px;
+}
+
+.fleet-dock .fleet-chips {
+  min-width: 0;
+  display: flex;
+  gap: 4px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  padding-bottom: 1px;
+}
+
+.fleet-dock .fleet-chip {
+  flex: 0 0 auto;
+  min-height: 24px;
+  padding: 4px 8px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+
+.fleet-dock .fleet-chip-meta {
+  font-size: 10px;
+}
+
+.fleet-dock .fleet-chip-dot {
+  width: 7px;
+  height: 7px;
+}
+
 .view {
   width: 100%;
   height: 100%;
@@ -1194,6 +1257,10 @@ button:focus-visible,
   cursor: crosshair;
 }
 
+.plate--mission.is-dragging {
+  cursor: grabbing;
+}
+
 .wp-path { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
 .wp {
@@ -1205,9 +1272,13 @@ button:focus-visible,
   place-items: center;
   font-family: var(--font-mono);
   font-size: 14px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0;
   color: var(--text-pri);
   transform: translate(-50%, -50%);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  z-index: 6;
 }
 .wp:hover,
 .wp:focus-visible,
@@ -1216,6 +1287,14 @@ button:focus-visible,
   background: rgba(209, 139, 72, 0.28);
   box-shadow: 0 0 18px rgba(209, 139, 72, 0.22);
 }
+
+.wp.is-dragging {
+  cursor: grabbing;
+  z-index: 10;
+  background: rgba(209, 139, 72, 0.38);
+  box-shadow: 0 0 0 2px rgba(209, 139, 72, 0.25), 0 0 24px rgba(209, 139, 72, 0.28);
+}
+
 .wp em { font-style: normal; }
 
 .plan {
@@ -1227,6 +1306,45 @@ button:focus-visible,
   gap: 18px;
   min-height: 0;
   overflow: auto;
+}
+
+.mission-defaults {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(148px, 0.8fr);
+  gap: 8px;
+  align-items: stretch;
+  padding-bottom: 2px;
+}
+
+.mission-default-field {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  color: var(--text-sec);
+  font-family: var(--font-display);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+}
+
+.mission-alt-input {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+}
+
+.mission-alt-input .field-input {
+  height: 36px;
+}
+
+.mission-alt-input em {
+  color: var(--text-mute);
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 12px;
 }
 
 .wp-table {
@@ -2027,7 +2145,7 @@ html[lang="zh"] .cal-prompt-title { letter-spacing: 0; }
 }
 
 .sb-commands {
-  order: 2;
+  order: 4;
   flex: 0 0 auto;
   border-top: 1px solid var(--rule);
   border-bottom: 1px solid var(--rule);
@@ -2065,10 +2183,9 @@ html[lang="zh"] .cal-prompt-title { letter-spacing: 0; }
 
 .command-grid .op-btn.is-blocked,
 .command-grid .op-btn.is-confirming {
-  min-height: 36px;
+  min-height: 28px;
 }
 
-.command-grid .op-btn.is-blocked .op-btn-meta,
 .command-grid .op-btn.is-confirming .op-btn-meta {
   display: block;
   margin-top: 1px;
@@ -2081,8 +2198,87 @@ html[lang="zh"] .cal-prompt-title { letter-spacing: 0; }
   color: #ffd6ce;
 }
 
+.command-grid .op-btn.is-blocked .op-btn-meta {
+  display: none;
+}
+
 .command-span {
   grid-column: 1 / -1;
+}
+
+.preflight-check {
+  border: 1px solid var(--rule);
+  background: rgba(241, 232, 218, 0.025);
+  padding: 5px;
+  display: grid;
+  gap: 4px;
+}
+
+.check-head,
+.check-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
+  font-family: var(--font-display);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--text-sec);
+}
+
+.check-head {
+  color: var(--text-pri);
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 3px;
+}
+
+.check-state,
+.check-value {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--text-mute);
+}
+
+.check-grid {
+  display: grid;
+  gap: 2px;
+}
+
+.check-row {
+  min-height: 19px;
+  padding: 1px 0;
+}
+
+.check-row > span:first-child {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.check-row.is-ok .check-value,
+.check-state.state--ok {
+  color: #9ed1a2;
+}
+
+.check-row.is-warn .check-value,
+.check-state.state--warn {
+  color: var(--accent-ochre);
+}
+
+.check-row--manual {
+  justify-content: flex-start;
+  cursor: pointer;
+  color: var(--text-pri);
+}
+
+.check-row--manual input {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  accent-color: var(--accent-ochre);
 }
 
 .sb-meta {
@@ -2095,7 +2291,7 @@ html[lang="zh"] .cal-prompt-title { letter-spacing: 0; }
 /* --- active vehicle block --- */
 
 .sb-active {
-  order: 3;
+  order: 2;
   flex: 0 0 auto;
 }
 
@@ -2148,26 +2344,6 @@ html[lang="zh"] .cal-prompt-title { letter-spacing: 0; }
 .sb-connect {
   margin-top: 3px;
   width: 100%;
-}
-
-/* --- fleet (vertical list inside sidebar) --- */
-
-.sb-fleet {
-  order: 4;
-  min-height: 0;
-  overflow: auto;
-}
-
-.sb-fleet .fleet-chips {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.sb-fleet .fleet-chip {
-  width: 100%;
-  justify-content: flex-start;
-  padding: 5px 8px;
 }
 
 /* ============================================================
@@ -2670,9 +2846,34 @@ html[lang="zh"] .cal-prompt-title { letter-spacing: 0; }
   }
 
   .command-grid .op-btn {
-    min-height: 24px;
+    min-height: 22px;
     padding: 3px 5px;
     font-size: 11px;
+  }
+
+  .command-grid .op-btn.is-blocked,
+  .command-grid .op-btn.is-confirming {
+    min-height: 22px;
+  }
+
+  .preflight-check {
+    padding: 3px 4px;
+    gap: 2px;
+  }
+
+  .check-head {
+    padding-bottom: 1px;
+  }
+
+  .check-row {
+    min-height: 15px;
+    padding: 0;
+    font-size: 9px;
+  }
+
+  .check-state,
+  .check-value {
+    font-size: 8px;
   }
 
   .sb-active-cs {
@@ -2691,8 +2892,7 @@ html[lang="zh"] .cal-prompt-title { letter-spacing: 0; }
     display: none;
   }
 
-  .sb-active-row[data-rail="mode"],
-  .sb-fleet {
+  .sb-active-row[data-rail="mode"] {
     display: none;
   }
 

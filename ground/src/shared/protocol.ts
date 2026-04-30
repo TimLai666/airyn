@@ -11,9 +11,9 @@ export type LinkMode = "direct" | "via-mission";
 export type LinkTransport = "serial" | "udp" | "tcp" | "ws";
 export type VehicleColor = "ochre" | "ice" | "ok";
 export type LogLevel = "info" | "warn" | "err";
-export type VehicleMode = "standby" | "manual" | "hold" | "mission" | "rtl" | "land";
+export type VehicleMode = "standby" | "manual" | "takeoff" | "hold" | "mission" | "rtl" | "land";
 export type SafetyState = "offline" | "preflight" | "armed" | "failsafe";
-export type VehicleCommand = "arm" | "disarm" | "hold" | "mission" | "rtl" | "land" | "kill";
+export type VehicleCommand = "arm" | "disarm" | "takeoff" | "hold" | "mission" | "rtl" | "land" | "kill";
 
 export interface VehicleLink {
   mode: LinkMode;

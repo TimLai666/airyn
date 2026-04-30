@@ -39,7 +39,7 @@ models/<tier>/<model>/model.toml
 | 10. Tests | Partial | Added Python config/profile tests covering tiered model lookup. Still need mixer and safety tests with a C++ host or PlatformIO test setup. |
 | 11. Bring-up docs | Partial | `docs/new-model-bringup.md`, `docs/board-config.md`, and `docs/operating-modes.md` reflect the tiered model + board layout. Keep updated as hardware flow evolves. |
 | 12. Model tiers and boards | Done | `models/{dev,stable,experimental}/` tiers in place, `boards/<target_board>.toml` separated from model, `freeze_model.py`/`edit_model.py` updated for the tiered workflow, `check_config.py` validates the board reference. |
-| 13. Ground control | Partial | Electrobun/Bun ground app now has a real local bridge protocol beyond connect/disconnect: arm/disarm, hold, mission start, RTL, land, motor cut, mission upload/export/editing, calibration events, fleet telemetry, GPS/link-loss simulation, visibly actionable controls, armed-state disconnect lockout, a full-window combined primary workspace, fixed non-scrolling flight commands, stable telemetry readouts, mission altitude profile with route-projected live position, and an estimated terrain-relative aircraft view with aligned terrain, ground, aircraft, and clearance markers. Needs real serial/UDP transport, real DEM terrain data, persisted mission library, hardware calibration command mapping, and replay/log storage. |
+| 13. Ground control | Partial | Electrobun/Bun ground app now has a real local bridge protocol beyond connect/disconnect: queued bridge commands for early connect/configure clicks, visible multi-vehicle simulator switching in a horizontal workspace fleet dock, arm/disarm, guided takeoff with auto-arm and climb-to-hold behavior, hold, mission start with QGC-style ready-to-arm gating, RTL, land, motor cut, mission upload/export/editing, mission default altitude with apply-to-route control, compact preflight checklist gating, calibration events, fleet telemetry, GPS/link-loss simulation, visibly actionable controls, armed-state disconnect lockout, a full-window combined primary workspace, fixed non-scrolling flight commands, stable telemetry readouts, mission altitude profile with route-projected live position, and an estimated terrain-relative aircraft view with aligned terrain, ground, aircraft, and clearance markers. Needs real serial/UDP transport, real DEM terrain data, persisted mission library, hardware calibration command mapping, and replay/log storage. |
 
 Update this table whenever implementation progress changes.
 
@@ -411,6 +411,7 @@ Tasks:
 - Make mission planning editable:
   - add waypoint
   - click plan plate to add waypoint
+  - drag existing plan-plate waypoints to move them without creating duplicates
   - edit type / lat / lon / altitude
   - delete waypoint
   - upload plan to the bridge
@@ -430,6 +431,7 @@ Ground follow-up completed:
 - Simulator arm now enters an armed-idle state instead of immediately simulating climb/turning motion; hold is labeled as position hold.
 - Settings transport fields now update the active vehicle link locally and through the Bun bridge; controls that do not yet have real behavior are disabled instead of acting editable.
 - Mission waypoint editing no longer uses the native select dropdown for waypoint type, and the table columns were widened/stabilized for dense operator use.
+- Mission plan-plate markers are now real drag handles, so moving an existing waypoint updates its coordinates instead of creating another waypoint.
 
 Latest Ground usability pass completed:
 

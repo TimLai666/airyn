@@ -47,6 +47,7 @@ interface SimVehicle {
   insActive: boolean;
   mode: VehicleMode;
   safetyState: SafetyState;
+  takeoffTargetAlt: number | null;
   missionPlan: MissionWaypoint[];
   missionActiveIndex: number | null;
   roll: number; pitch: number; yaw: number;
@@ -82,6 +83,7 @@ function makeVehicle(
     insActive: false,
     mode: "standby",
     safetyState: "offline",
+    takeoffTargetAlt: null,
     missionPlan: [],
     missionActiveIndex: null,
     roll: 0, pitch: 0, yaw: heading,
@@ -219,6 +221,7 @@ function tickVehicle(v: SimVehicle): void {
     v.safetyState = v.linkActive ? "preflight" : "offline";
     resetFlightDynamics(v);
   } else {
+    const prevAltitude = v.altitude;
     const desiredSpeed =
       v.mode === "mission" ? 8 :
       v.mode === "rtl" ? 7 :
@@ -227,15 +230,24 @@ function tickVehicle(v: SimVehicle): void {
       0;
     v.speed += (desiredSpeed - v.speed) * 0.12;
 
-    if (v.mode === "mission" || v.mode === "rtl" || v.mode === "manual") {
-      const targetAlt = v.mode === "manual" ? Math.max(3, v.altitude) : 45 + Math.sin(simTime * 0.2) * 2;
+    if (v.mode === "takeoff" || v.mode === "mission" || v.mode === "rtl" || v.mode === "manual") {
+      const targetAlt =
+        v.mode === "takeoff" ? (v.takeoffTargetAlt ?? 20) :
+        v.mode === "manual" ? Math.max(3, v.altitude) :
+        45 + Math.sin(simTime * 0.2) * 2;
       v.altitude += (targetAlt - v.altitude) * 0.06;
+      if (v.mode === "takeoff" && Math.abs(targetAlt - v.altitude) < 0.8) {
+        v.mode = "hold";
+        v.takeoffTargetAlt = null;
+        pushLog("info", "log.tag.cmd", "log.msg.command_hold", v.callsign);
+      }
     } else if (v.mode === "land") {
       v.altitude = Math.max(0, v.altitude - SIM_DT * 1.4);
       if (v.altitude <= 0.2) {
         v.armed = false;
         v.mode = "standby";
         v.safetyState = v.linkActive ? "preflight" : "offline";
+        v.takeoffTargetAlt = null;
         pushLog("info", "log.tag.cmd", "log.msg.auto_disarmed", v.callsign);
       }
     }
@@ -243,7 +255,7 @@ function tickVehicle(v: SimVehicle): void {
     if (!v.armed) {
       resetFlightDynamics(v);
     } else {
-      if (v.mode !== "hold" && v.mode !== "standby") {
+      if (v.mode !== "takeoff" && v.mode !== "hold" && v.mode !== "standby") {
         const headRad = (v.heading * Math.PI) / 180;
         const dlat = (v.speed * SIM_DT * Math.cos(headRad)) / 111111;
         const dlon = (v.speed * SIM_DT * Math.sin(headRad)) / (111111 * Math.cos((v.lat * Math.PI) / 180));
@@ -254,13 +266,13 @@ function tickVehicle(v: SimVehicle): void {
       }
 
       v.safetyState = v.safetyState === "failsafe" ? "failsafe" : "armed";
-      const steadyMode = v.mode === "hold" || v.mode === "standby";
+      const steadyMode = v.mode === "takeoff" || v.mode === "hold" || v.mode === "standby";
       const baseThrottle = v.mode === "standby" ? 5 : v.mode === "hold" ? 18 : v.mode === "land" ? 22 : 35;
       v.thr = Math.max(0, Math.floor(baseThrottle + jitter(0, steadyMode ? 1.5 : 6)));
       v.roll = jitter(0, steadyMode ? 0.2 : 0.6);
       v.pitch = jitter(0, steadyMode ? 0.2 : 0.6);
       v.baroAlt = v.altitude + jitter(0, 0.3);
-      v.baroVs = v.mode === "land" ? -1.4 + jitter(0, 0.1) : jitter(0, steadyMode ? 0.08 : 0.4);
+      v.baroVs = ((v.altitude - prevAltitude) / SIM_DT) + jitter(0, steadyMode ? 0.08 : 0.4);
       v.batI = jitter(v.mode === "standby" ? 1.4 : v.mode === "hold" ? 5.2 : 8.4, 0.6);
       v.batUsed += (v.batI * SIM_DT) / 3.6;
 
@@ -376,6 +388,7 @@ export function startVehicle(id: string): void {
   v.insActive = false;
   v.mode = "standby";
   v.safetyState = "preflight";
+  v.takeoffTargetAlt = null;
   v.armed = false;
   v.altitude = 0;
   v.speed = 0;
@@ -407,6 +420,7 @@ export function stopVehicle(id: string): void {
   v.gpsSats = 0;
   v.mode = "standby";
   v.safetyState = "offline";
+  v.takeoffTargetAlt = null;
   v.armed = false;
   v.altitude = 0;
   v.speed = 0;
@@ -432,6 +446,7 @@ export function commandVehicle(id: string, command: VehicleCommand): void {
     v.armed = false;
     v.mode = "standby";
     v.safetyState = "failsafe";
+    v.takeoffTargetAlt = null;
     resetFlightDynamics(v);
     pushLog("err", "log.tag.cmd", "log.msg.command_kill", v.callsign);
     emitSnapshot();
@@ -453,9 +468,23 @@ export function commandVehicle(id: string, command: VehicleCommand): void {
     return;
   }
 
-  if (!v.armed) {
-    pushLog("warn", "log.tag.safe", "log.msg.command_rejected_disarmed", v.callsign);
+  if (command === "mission" && v.missionPlan.length === 0) {
+    pushLog("warn", "log.tag.cmd", "log.msg.command_rejected_no_plan", v.callsign);
     return;
+  }
+
+  if (!v.armed) {
+    if (command === "takeoff" || command === "mission") {
+      if (!preflightOk(v)) {
+        pushLog("warn", "log.tag.safe", "log.msg.arm_rejected", v.callsign);
+        return;
+      }
+      v.armed = true;
+      v.safetyState = "armed";
+    } else {
+      pushLog("warn", "log.tag.safe", "log.msg.command_rejected_disarmed", v.callsign);
+      return;
+    }
   }
 
   switch (command) {
@@ -463,11 +492,20 @@ export function commandVehicle(id: string, command: VehicleCommand): void {
       v.armed = false;
       v.mode = "standby";
       v.safetyState = v.linkActive ? "preflight" : "offline";
+      v.takeoffTargetAlt = null;
       resetFlightDynamics(v);
       pushLog("info", "log.tag.cmd", "log.msg.command_disarm", v.callsign);
       break;
+    case "takeoff":
+      v.mode = "takeoff";
+      v.takeoffTargetAlt = Math.max(20, v.altitude + 8);
+      v.missionActiveIndex = null;
+      pushLog("info", "log.tag.cmd", "log.msg.command_takeoff", v.callsign, Math.round(v.takeoffTargetAlt));
+      ensureTickRunning();
+      break;
     case "hold":
       v.mode = "hold";
+      v.takeoffTargetAlt = null;
       pushLog("info", "log.tag.cmd", "log.msg.command_hold", v.callsign);
       break;
     case "mission":
@@ -476,16 +514,19 @@ export function commandVehicle(id: string, command: VehicleCommand): void {
         return;
       }
       v.mode = "mission";
+      v.takeoffTargetAlt = null;
       v.missionActiveIndex = 0;
       pushLog("info", "log.tag.cmd", "log.msg.command_mission", v.callsign, v.missionPlan.length);
       break;
     case "rtl":
       v.mode = "rtl";
+      v.takeoffTargetAlt = null;
       v.missionActiveIndex = null;
       pushLog("warn", "log.tag.cmd", "log.msg.command_rtl", v.callsign);
       break;
     case "land":
       v.mode = "land";
+      v.takeoffTargetAlt = null;
       v.missionActiveIndex = null;
       pushLog("warn", "log.tag.cmd", "log.msg.command_land", v.callsign);
       break;

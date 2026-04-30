@@ -102,6 +102,10 @@
               <span class="op-btn-label" data-i18n="btn.arm">ARM</span>
               <span class="op-btn-meta" data-i18n="btn.arm.meta">ENABLE MOTORS</span>
             </button>
+            <button class="op-btn op-btn--primary" type="button" data-command="takeoff">
+              <span class="op-btn-label" data-i18n="btn.takeoff">TAKEOFF</span>
+              <span class="op-btn-meta" data-i18n="btn.takeoff.meta">CHECK THEN CLIMB</span>
+            </button>
             <button class="op-btn" type="button" data-command="hold">
               <span class="op-btn-label" data-i18n="btn.hold">HOLD</span>
               <span class="op-btn-meta" data-i18n="btn.hold.meta">KEEP POSITION</span>
@@ -127,18 +131,47 @@
               <span class="op-btn-meta" data-i18n="btn.kill.meta">AIRBORNE CRASH RISK</span>
             </button>
           </div>
+          <div class="preflight-check">
+            <div class="check-head">
+              <span data-i18n="check.title">PREFLIGHT CHECK</span>
+              <span class="check-state" data-i18n="check.pending">PENDING</span>
+            </div>
+            <div class="check-grid">
+              <div class="check-row" data-preflight-auto="link">
+                <span data-i18n="check.link">Telemetry link</span><span class="check-value">PENDING</span>
+              </div>
+              <div class="check-row" data-preflight-auto="gps">
+                <span data-i18n="check.gps">GPS fix</span><span class="check-value">PENDING</span>
+              </div>
+              <div class="check-row" data-preflight-auto="battery">
+                <span data-i18n="check.battery">Battery voltage</span><span class="check-value">PENDING</span>
+              </div>
+              <div class="check-row" data-preflight-auto="mission">
+                <span data-i18n="check.mission">Mission uploaded</span><span class="check-value">PENDING</span>
+              </div>
+              <label class="check-row check-row--manual">
+                <input type="checkbox" data-check="areaClear">
+                <span data-i18n="check.area">Takeoff area clear</span>
+              </label>
+              <label class="check-row check-row--manual">
+                <input type="checkbox" data-check="operatorReady">
+                <span data-i18n="check.operator">Operator confirmed</span>
+              </label>
+            </div>
+          </div>
         </section>
 
-        <section class="sb-block sb-fleet">
-          <header class="sb-head">
-            <span class="sb-key" data-i18n="fleet.key">FLEET</span>
-            <span class="sb-meta" id="fleet-meta">0 / 3</span>
-          </header>
-          <div class="fleet-chips" id="fleet-chips"></div>
-        </section>
       </aside>
 
       <section class="content">
+        <section class="fleet-dock" aria-label="Fleet switcher">
+          <header class="fleet-dock-head">
+            <span class="fleet-dock-key" data-i18n="fleet.key">FLEET</span>
+            <span class="fleet-meta" id="fleet-meta">0 / 3</span>
+          </header>
+          <div class="fleet-chips" id="fleet-chips"></div>
+        </section>
+
         <!-- MAP -->
         <section class="view view--map" data-view="map" hidden>
           <article class="plate plate--map">
@@ -528,6 +561,19 @@
               <span class="readout-key" data-i18n="mission.waypoints">WAYPOINTS</span>
               <span class="readout-status" data-mission="planned">3 PLANNED</span>
             </header>
+            <div class="mission-defaults">
+              <label class="mission-default-field">
+                <span data-i18n="mission.default_alt">ALT</span>
+                <span class="mission-alt-input">
+                  <input class="field-input" data-mission-default="alt" type="number" min="5" max="500" step="1" value="30">
+                  <em>m</em>
+                </span>
+              </label>
+              <button class="op-btn" type="button" data-action="wp-apply-alt">
+                <span class="op-btn-label" data-i18n="mission.apply_alt">APPLY ALT</span>
+                <span class="op-btn-meta" data-i18n="mission.apply_alt.meta">NON-LAND ITEMS</span>
+              </button>
+            </div>
             <table class="wp-table">
               <thead>
                 <tr>
