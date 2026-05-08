@@ -14,7 +14,7 @@ models/<tier>/<model>/model.toml
 
 ## Current Status
 
-- Monorepo skeleton exists with independent `flight/`, `mission/`, `ground/`, `shared/`, `sim/`, `tools/`, and `examples/`. `ground/` now has an Electrobun/Bun app with a local bridge and operator workflows; `mission/` remains minimal.
+- Monorepo skeleton exists with independent `flight/`, `mission/`, `ground/`, `shared/`, `sim/`, `tools/`, and `examples/`. `ground/` now has an Electrobun/Bun app with a local bridge and operator workflows; `mission/` is now a working onboard daemon that reuses the same JSON wire format Ground already speaks.
 - MadFlight is included as `flight/vendor/madflight` submodule pinned to `v2.3.0`.
 - `models/` is split into `dev/`, `stable/`, `experimental/` tiers. `models/dev/testbench/model.toml` is the default development model.
 - Board pinouts live under `boards/`; `boards/pico2_breadboard_dev.toml` is the current development board. Models reference a board via `target_board`, and the board file is merged into the model at load time.
@@ -40,6 +40,7 @@ models/<tier>/<model>/model.toml
 | 11. Bring-up docs | Partial | `docs/new-model-bringup.md`, `docs/board-config.md`, and `docs/operating-modes.md` reflect the tiered model + board layout. Keep updated as hardware flow evolves. |
 | 12. Model tiers and boards | Done | `models/{dev,stable,experimental}/` tiers in place, `boards/<target_board>.toml` separated from model, `freeze_model.py`/`edit_model.py` updated for the tiered workflow, `check_config.py` validates the board reference. |
 | 13. Ground control | Partial | Electrobun/Bun ground app now has a real local bridge protocol beyond connect/disconnect: queued bridge commands for early connect/configure clicks, visible multi-vehicle simulator switching in a horizontal workspace fleet dock, arm/disarm, guided takeoff with auto-arm and climb-to-hold behavior, hold, mission start with QGC-style ready-to-arm gating, RTL, land, motor cut, mission upload/export/editing, mission default altitude with apply-to-route control, compact preflight checklist gating, calibration events, fleet telemetry, GPS/link-loss simulation, visibly actionable controls, armed-state disconnect lockout, a full-window combined primary workspace, fixed non-scrolling flight commands, stable telemetry readouts, mission altitude profile with route-projected live position, and an estimated terrain-relative aircraft view with aligned terrain, ground, aircraft, and clearance markers. Needs real serial/UDP transport, real DEM terrain data, persisted mission library, hardware calibration command mapping, and replay/log storage. |
+| 14. Mission daemon | Partial | `mission/` is now a working onboard companion process. It mirrors the ground bridge protocol (`hello`/`fleet`/`log`, `connect`/`command`/`uploadPlan`/`calibration`) so the existing renderer can connect over WebSocket. Pieces in place: protocol package mirroring `ground/src/shared/protocol.ts`; `flightlink.Link` interface with a deterministic `Stub` source that responds to `goto`/`takeoff`/`hold`/`rtl`/`land`/`kill`; mission engine state machine (preflight, armed, takeoff, mission, hold, RTL, land, failsafe), waypoint navigation (haversine arrival detection), ground-loss timeout that triggers RTL; insyra-backed `telemetry.Buffer` rolling DataTable with vbat/baro/gps/speed/armed-ratio summary stats; `groundserver` WebSocket hub on `:7700` with hello + initial snapshot; env-driven `config` package; `cmd/missiond` daemon with signal-aware shutdown. Missing: real serial/UDP `flightlink` transports, calibration forwarding to FC, persistent log/replay storage, and multi-vehicle supervision. |
 
 Update this table whenever implementation progress changes.
 
@@ -449,6 +450,39 @@ Latest Ground usability pass completed:
 Done when:
 
 - A user can connect to a vehicle, verify preflight state, upload a plan, arm, run/hold/RTL/land/disarm, calibrate, and inspect logs through real transport-backed actions.
+
+## Phase 14: Mission Daemon Onboard Companion
+
+Goal: `mission/` runs on the airframe's companion computer and is the supervisor that ground talks to in via-mission link mode.
+
+Architecture in place (`mission/internal/`):
+
+- `protocol/`: Go mirror of `ground/src/shared/protocol.ts` (vehicle config, mission waypoints, fleet frame, log message, client commands), plus a `FlightFrame`/`FlightCommand` schema for the mission↔flight boundary.
+- `flightlink/`: `Link` interface (`Frames()`, `Health()`, `Send`, `Close`) with a deterministic `Stub` that integrates `goto`/`takeoff`/`hold`/`rtl`/`land`/`kill` against a simple physics model — used until real transports land.
+- `engine/`: high-level state machine (preflight/armed/takeoff/mission/hold/RTL/land/failsafe), plan store, haversine arrival detection (5 m radius), preflight gating on FC link health + GPS sat count + vbat, ground-loss policy that triggers RTL after a configurable timeout, and synchronised log/frame emission to a Listener.
+- `telemetry/`: insyra-backed rolling `DataTable` of recent samples (vbat / baroVs / gpsSats / gpsHdop / speed / armed) with capacity FIFO eviction and a cheap `Summary()` (mean / min / stdev / armed ratio / window). Insyra v0.2.17 (Pier-2) is the project default for onboard data processing.
+- `groundserver/`: `coder/websocket` server on `:7700` with a fan-out `Hub`, hello + initial-snapshot handshake, command dispatch (`command`, `uploadPlan`, `calibration` log-through, no-op for `connect`/`disconnect`/`configureLink`), drop-oldest backpressure for slow clients, and engine notification on first/last connection for ground-loss tracking.
+- `config/`: `AIRYN_MISSION_*` env-driven configuration (listen address, link, vehicle id/callsign/color, preflight thresholds, telemetry capacity, tick rate).
+- `app/`: orchestrator that wires link → engine → telemetry buffer → ground server, writes the startup line, and blocks until ctx cancellation.
+- `cmd/missiond`: thin entry with `signal.NotifyContext(SIGINT, SIGTERM)` so ground-side restarts terminate cleanly.
+
+Tests:
+
+- `engine`: haversine + bearing helpers; arm rejected without preflight, arm accepted after a healthy frame, mission requires uploaded plan, mission advances waypoint-by-waypoint and returns to hold on completion.
+- `telemetry`: capacity capping (FIFO), summary stats correctness (vbat mean / speed max / armed ratio / window), empty-buffer safety, reset.
+- `app`: startup line is emitted, daemon starts on an ephemeral port and exits cleanly on `cancel()`.
+
+Pending follow-ups:
+
+- Real `flightlink` transports: `serial.Link` (USB CDC to RP2350A) and `udp.Link` (LAN bring-up).
+- Calibration capture forwarding to the FC once a flight-side calibration service exists.
+- Log/replay persistence (sqlite or parquet via insyra) for post-flight review.
+- Multi-vehicle supervision if a single mission daemon ever needs to babysit more than one airframe (currently one daemon per airframe).
+- Promote the protocol types to `shared/protocol/` once a Go consumer exists outside `mission/`.
+
+Done when:
+
+- A real flight controller (or the existing rate-mode firmware over serial) can be supervised end-to-end through `mission/` from the existing Ground UI without source changes on the renderer side.
 
 ## First Flyable Scope
 
