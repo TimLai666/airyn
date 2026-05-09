@@ -47,14 +47,26 @@
           <button class="nav-item" type="button" data-tab="mission">
             <span class="nav-num">04</span><span class="nav-name" data-i18n="tab.mission">MISSION</span>
           </button>
+          <button class="nav-item" type="button" data-tab="fence">
+            <span class="nav-num">05</span><span class="nav-name" data-i18n="tab.fence">FENCE</span>
+          </button>
+          <button class="nav-item" type="button" data-tab="params">
+            <span class="nav-num">06</span><span class="nav-name" data-i18n="tab.params">PARAMS</span>
+          </button>
+          <button class="nav-item" type="button" data-tab="inspector">
+            <span class="nav-num">07</span><span class="nav-name" data-i18n="tab.inspector">INSPECTOR</span>
+          </button>
+          <button class="nav-item" type="button" data-tab="tlog">
+            <span class="nav-num">08</span><span class="nav-name" data-i18n="tab.tlog">TLOG</span>
+          </button>
           <button class="nav-item" type="button" data-tab="calibration">
-            <span class="nav-num">05</span><span class="nav-name" data-i18n="tab.calibration">CALIBRATION</span>
+            <span class="nav-num">09</span><span class="nav-name" data-i18n="tab.calibration">CALIBRATION</span>
           </button>
           <button class="nav-item" type="button" data-tab="log">
-            <span class="nav-num">06</span><span class="nav-name" data-i18n="tab.log">LOG</span>
+            <span class="nav-num">10</span><span class="nav-name" data-i18n="tab.log">LOG</span>
           </button>
           <button class="nav-item" type="button" data-tab="settings">
-            <span class="nav-num">07</span><span class="nav-name" data-i18n="tab.settings">SETTINGS</span>
+            <span class="nav-num">11</span><span class="nav-name" data-i18n="tab.settings">SETTINGS</span>
           </button>
         </nav>
 
@@ -134,8 +146,9 @@
           <div class="preflight-check">
             <div class="check-head">
               <span data-i18n="check.title">PREFLIGHT CHECK</span>
-              <span class="check-state" data-i18n="check.pending">PENDING</span>
+              <button class="check-state" type="button" data-action="preflight-detail" data-i18n="check.pending">PENDING</button>
             </div>
+            <p class="preflight-hint" data-i18n="check.hint">Click status chip for details.</p>
             <div class="check-grid">
               <div class="check-row" data-preflight-auto="link">
                 <span data-i18n="check.link">Telemetry link</span><span class="check-value">PENDING</span>
@@ -242,6 +255,7 @@
               <span class="corner corner--br"></span>
             </div>
             <div class="map-slot" id="map-slot-combined"></div>
+            <div class="pip-mount" data-video-pip></div>
             <header class="plate-head">
               <span class="plate-class" data-i18n="plate.class">TERRAIN · LIVE</span>
               <span class="plate-coord" id="plate-coord-cb">— · —</span>
@@ -261,6 +275,7 @@
               <span class="corner corner--br"></span>
             </div>
             <div class="cam-noise" aria-hidden="true"></div>
+            <div class="cam-video-mount" data-video-mount></div>
             <header class="cam-head">
               <span class="cam-class" id="cb-cam-class">FEED · FPV</span>
               <span class="cam-rec">
@@ -273,9 +288,41 @@
               <span><span data-i18n="cam.foot.fps">FPS</span> <em>—</em></span>
               <span><span data-i18n="cam.foot.lat">LATENCY</span> <em>—</em> MS</span>
             </footer>
+            <article class="joystick-hud" data-joystick-hud>
+              <header class="joystick-head">
+                <span class="readout-key" data-i18n="joy.title">MANUAL OVERRIDE</span>
+                <label class="joystick-toggle">
+                  <input type="checkbox" data-joystick-enable />
+                  <span data-i18n="joy.enable">ENABLE</span>
+                </label>
+                <span class="joystick-state" data-joystick-state>STBY</span>
+              </header>
+              <div class="joystick-grid">
+                <div class="vstick" data-vstick="left"></div>
+                <div class="vstick" data-vstick="right"></div>
+              </div>
+              <footer class="joystick-foot">
+                <span data-i18n="joy.hint">HOLD Q TO ENGAGE · ESC RELEASE · WASD/ARROWS</span>
+              </footer>
+            </article>
           </article>
 
           <aside class="cb-telem">
+            <article class="cb-pfd" data-pfd-host>
+              <header class="readout-head readout-head--pfd">
+                <span class="readout-key" data-i18n="readout.pfd">PRIMARY FLIGHT DISPLAY</span>
+                <span class="readout-status" data-pfd-state data-i18n="readout.pfd.standby">STANDBY</span>
+              </header>
+              <div class="pfd-mount" data-pfd-mount></div>
+              <dl class="cb-pfd-meta">
+                <div><dt data-i18n="pfd.dist">D-HOME</dt><dd data-pfd-meta="dist">—</dd></div>
+                <div><dt data-i18n="pfd.ttg">BAT TTG</dt><dd data-pfd-meta="ttg">—</dd></div>
+                <div><dt data-i18n="pfd.rssi">RSSI</dt><dd data-pfd-meta="rssi">—</dd></div>
+                <div><dt data-i18n="pfd.lq">LQ</dt><dd data-pfd-meta="lq">—</dd></div>
+                <div><dt data-i18n="pfd.fence">FENCE</dt><dd data-pfd-meta="fence">—</dd></div>
+              </dl>
+              <span class="dock-handle" title="Drag">⠿</span>
+            </article>
             <header class="readout-head">
               <span class="readout-key" data-i18n="readout.telemetry">TELEMETRY</span>
               <span class="readout-status" data-status="armed" data-i18n="readout.safe_disarmed">SAFE / DISARMED</span>
@@ -597,6 +644,158 @@
           </aside>
         </section>
 
+        <!-- FENCE -->
+        <section class="view view--fence" data-view="fence" hidden>
+          <article class="plate plate--map fence-plate">
+            <div class="plate-frame" aria-hidden="true">
+              <span class="corner corner--tl"></span>
+              <span class="corner corner--tr"></span>
+              <span class="corner corner--bl"></span>
+              <span class="corner corner--br"></span>
+            </div>
+            <div class="map-slot" id="map-slot-fence"></div>
+            <header class="plate-head">
+              <span class="plate-class" data-i18n="fence.plate">GEOFENCE · DRAFT</span>
+              <span class="plate-coord" data-fence-summary>no shapes</span>
+            </header>
+            <footer class="plate-foot">
+              <span data-fence-mode-label data-i18n="fence.mode.off">OFF</span>
+            </footer>
+          </article>
+
+          <aside class="fence-panel">
+            <header class="readout-head">
+              <span class="readout-key" data-i18n="fence.title">GEOFENCE EDITOR</span>
+              <label class="fence-toggle">
+                <input type="checkbox" data-fence-enable />
+                <span data-i18n="fence.enable">ENABLE</span>
+              </label>
+            </header>
+
+            <div class="fence-tools">
+              <button class="op-btn fence-tool" type="button" data-fence-tool="circle">
+                <span class="op-btn-label" data-i18n="fence.tool.circle">CIRCLE</span>
+                <span class="op-btn-meta" data-i18n="fence.tool.circle.meta">HOME + RADIUS</span>
+              </button>
+              <button class="op-btn fence-tool" type="button" data-fence-tool="polygon-inclusion">
+                <span class="op-btn-label" data-i18n="fence.tool.incl">INCLUSION</span>
+                <span class="op-btn-meta" data-i18n="fence.tool.incl.meta">MUST STAY INSIDE</span>
+              </button>
+              <button class="op-btn fence-tool" type="button" data-fence-tool="polygon-exclusion">
+                <span class="op-btn-label" data-i18n="fence.tool.excl">EXCLUSION</span>
+                <span class="op-btn-meta" data-i18n="fence.tool.excl.meta">NO-FLY ZONE</span>
+              </button>
+              <button class="op-btn fence-tool" type="button" data-fence-tool="rally">
+                <span class="op-btn-label" data-i18n="fence.tool.rally">RALLY</span>
+                <span class="op-btn-meta" data-i18n="fence.tool.rally.meta">RTL TARGETS</span>
+              </button>
+              <button class="op-btn fence-tool" type="button" data-fence-tool="delete">
+                <span class="op-btn-label" data-i18n="fence.tool.delete">DELETE</span>
+                <span class="op-btn-meta" data-i18n="fence.tool.delete.meta">CLICK TO REMOVE</span>
+              </button>
+              <button class="op-btn" type="button" data-fence-tool="off">
+                <span class="op-btn-label" data-i18n="fence.tool.done">DONE</span>
+                <span class="op-btn-meta">ESC</span>
+              </button>
+            </div>
+
+            <div class="fence-options">
+              <label class="field">
+                <span class="field-key" data-i18n="fence.opt.radius">CIRCLE R</span>
+                <span class="fence-opt-input">
+                  <input class="field-input" type="number" min="20" max="5000" step="5" data-fence-opt="radius" value="250"/>
+                  <em>m</em>
+                </span>
+              </label>
+              <label class="field">
+                <span class="field-key" data-i18n="fence.opt.alt">CIRCLE ALT</span>
+                <span class="fence-opt-input">
+                  <input class="field-input" type="number" min="10" max="500" step="5" data-fence-opt="alt" value="120"/>
+                  <em>m</em>
+                </span>
+              </label>
+              <label class="field">
+                <span class="field-key" data-i18n="fence.opt.action">BREACH</span>
+                <select class="field-input" data-fence-opt="action">
+                  <option value="rtl-home" data-i18n="fence.action.rtl_home">RTL HOME</option>
+                  <option value="rtl-rally" data-i18n="fence.action.rtl_rally">RTL NEAREST RALLY</option>
+                  <option value="land" data-i18n="fence.action.land">LAND IN PLACE</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="fence-actions">
+              <button class="op-btn op-btn--primary" type="button" data-action="fence-upload">
+                <span class="op-btn-label" data-i18n="fence.upload">UPLOAD FENCE</span>
+                <span class="op-btn-meta">CTRL+SHIFT+U</span>
+              </button>
+              <button class="op-btn" type="button" data-action="fence-clear">
+                <span class="op-btn-label" data-i18n="fence.clear">CLEAR</span>
+                <span class="op-btn-meta">CTRL+SHIFT+X</span>
+              </button>
+            </div>
+          </aside>
+        </section>
+
+        <!-- PARAMS -->
+        <section class="view view--params" data-view="params" hidden>
+          <div class="params-mount" data-params-mount></div>
+        </section>
+
+        <!-- INSPECTOR -->
+        <section class="view view--inspector" data-view="inspector" hidden>
+          <header class="inspector-head">
+            <span class="readout-key" data-i18n="inspector.title">MAVLINK INSPECTOR</span>
+            <span class="readout-status" data-inspector-stats>0 fields · 0 Hz</span>
+            <input class="params-search" type="search" placeholder="Filter fields" data-inspector-filter />
+          </header>
+          <div class="inspector-body" data-inspector-body></div>
+        </section>
+
+        <!-- TLOG -->
+        <section class="view view--tlog" data-view="tlog" hidden>
+          <header class="tlog-head">
+            <span class="readout-key" data-i18n="tlog.title">TELEMETRY LOG</span>
+            <span class="readout-status" data-tlog-summary>no recording</span>
+            <span class="tlog-actions">
+              <button class="op-btn" type="button" data-tlog-action="record">
+                <span class="op-btn-label" data-i18n="tlog.start">START REC</span>
+                <span class="op-btn-meta">R</span>
+              </button>
+              <button class="op-btn" type="button" data-tlog-action="stop" disabled>
+                <span class="op-btn-label" data-i18n="tlog.stop">STOP REC</span>
+                <span class="op-btn-meta">SHIFT+R</span>
+              </button>
+              <button class="op-btn" type="button" data-tlog-action="replay" disabled>
+                <span class="op-btn-label" data-i18n="tlog.replay">REPLAY</span>
+                <span class="op-btn-meta">P</span>
+              </button>
+              <button class="op-btn" type="button" data-tlog-action="clear" disabled>
+                <span class="op-btn-label" data-i18n="tlog.clear">CLEAR</span>
+                <span class="op-btn-meta">SHIFT+DEL</span>
+              </button>
+            </span>
+          </header>
+          <div class="tlog-scrubber">
+            <input type="range" class="tlog-range" min="0" max="100" value="0" step="0.1" data-tlog-range disabled />
+            <div class="tlog-meta">
+              <span class="tlog-time" data-tlog-time>00:00 / 00:00</span>
+              <span class="tlog-rate-controls">
+                <button class="op-btn op-btn--small" type="button" data-tlog-rate="0.5">×0.5</button>
+                <button class="op-btn op-btn--small is-active" type="button" data-tlog-rate="1">×1</button>
+                <button class="op-btn op-btn--small" type="button" data-tlog-rate="2">×2</button>
+                <button class="op-btn op-btn--small" type="button" data-tlog-rate="4">×4</button>
+                <button class="op-btn op-btn--small" type="button" data-tlog-rate="8">×8</button>
+              </span>
+            </div>
+          </div>
+          <article class="tlog-stage">
+            <div class="tlog-canvas" data-tlog-canvas>
+              <p class="tlog-empty" data-i18n="tlog.empty">START RECORDING TO REPLAY FRAMES LATER.</p>
+            </div>
+          </article>
+        </section>
+
         <!-- CALIBRATION -->
         <section class="view view--calibration" data-view="calibration" hidden>
           <header class="cal-steps">
@@ -740,6 +939,19 @@
                 <span class="field-key" data-i18n="field.board">BOARD</span>
                 <select class="field-input" disabled><option>rp2350a-breadboard</option><option>rp2350a-pcb-rev-a</option></select>
               </label>
+            </div>
+          </article>
+
+          <article class="form-block">
+            <header class="readout-head">
+              <span class="readout-key" data-i18n="settings.layout">LAYOUT</span>
+              <span class="readout-status" data-i18n="settings.local">LOCAL</span>
+            </header>
+            <div class="form-actions">
+              <button class="op-btn" type="button" data-action="layout-reset">
+                <span class="op-btn-label" data-i18n="settings.reset_layout">RESET PANEL POSITIONS</span>
+                <span class="op-btn-meta" data-i18n="settings.reset_layout.meta">CLEAR LOCAL DRAGS</span>
+              </button>
             </div>
           </article>
 

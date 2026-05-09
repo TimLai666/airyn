@@ -31,7 +31,7 @@ type VehicleCommand = "arm" | "disarm" | "takeoff" | "hold" | "mission" | "rtl" 
 type WaypointType = "wp.takeoff" | "wp.waypt" | "wp.land";
 type ChecklistKey = "areaClear" | "operatorReady";
 
-const VIEW_NAMES = ["combined", "cameras", "sensors", "mission", "calibration", "log", "settings"] as const;
+const VIEW_NAMES = ["combined", "cameras", "sensors", "mission", "fence", "params", "inspector", "tlog", "calibration", "log", "settings"] as const;
 type ViewName = typeof VIEW_NAMES[number];
 
 const COMMAND_LABEL_KEYS: Record<VehicleCommand, string> = {
@@ -85,6 +85,44 @@ const MISSION_MAX_DISTANCE_M = 10000;
 
 declare const L: any;
 
+import { mountPfd, type PfdHandle } from "./pfd";
+import { openPopup } from "./popup";
+import {
+  applySeverity,
+  batterySeverity,
+  distanceSeverity,
+  fenceSeverity,
+  formatDistance,
+  formatDuration,
+  linkQualitySeverity,
+  rssiSeverity,
+  type Severity,
+} from "./thresholds";
+import { createGeofenceLayer, summarizeFence, type FenceMode, type GeofenceLayerHandle } from "./geofence";
+import { downloadPlanFile, exportPlan, importPlan, pickPlanFile } from "./plan-file";
+import {
+  clearAll as tlogClear,
+  createReplay,
+  isRecording as tlogIsRecording,
+  recordFrame as tlogRecordFrame,
+  startRecording as tlogStartRecording,
+  stopRecording as tlogStopRecording,
+  summary as tlogSummary,
+  type ReplayHandle,
+} from "./tlog";
+import { createInspector, sparklinePath, type FieldStat, type InspectorHandle } from "./inspector";
+import { mountParamEditor, type ParamEditorHandle, type PendingEdit } from "./params";
+import { createGamepad, mountVirtualStick, type GamepadHandle } from "./gamepad";
+import { mountVideo, type VideoHandle } from "./video";
+import { makeDraggable, resetAllDockPositions } from "./dock";
+import type {
+  GeofencePlan,
+  ParameterDescriptor,
+  ParamValue,
+  PreflightReason,
+  PreflightSeverity,
+} from "../shared/protocol";
+
 interface VehicleLink {
   // How ground reaches the flight controller.
   //   "direct"      — ground connects straight to the FC (serial / UDP)
@@ -126,6 +164,7 @@ interface Vehicle {
   mode: VehicleMode;
   safetyState: SafetyState;
   preflightOk: boolean;
+  preflightReasons: PreflightReason[];
   missionUploaded: boolean;
   missionCount: number;
   missionActiveIndex: number | null;
@@ -136,6 +175,18 @@ interface Vehicle {
   accelX: number; accelY: number; accelZ: number;
   baroAlt: number; baroVs: number; baroP: number; baroT: number;
   batI: number; batUsed: number;
+  // home + estimates
+  homeLat: number | null;
+  homeLon: number | null;
+  homeAlt: number | null;
+  batTtgSec: number | null;
+  distHomeM: number | null;
+  rssiDbm: number | null;
+  linkQuality: number | null;
+  fenceState: "inside" | "breach-soft" | "breach-hard" | "none";
+  // operator-staged geofence (working copy until uploaded)
+  geofence: GeofencePlan;
+  videoUrl?: string;
   // Leaflet refs (mutable, initialized lazily)
   marker: any;
   gpsLine: any;
@@ -265,15 +316,100 @@ const dicts: Record<Lang, Record<string, string>> = {
     "check.operator": "操作員已確認",
     "check.ready": "可起飛",
     "check.pending": "待確認",
+    "check.fail": "未通過",
+    "check.warn": "需注意",
+    "check.pass": "通過",
+    "check.hint": "點擊狀態查看詳情",
+    "preflight.title": "起飛前檢查詳細",
+    "preflight.foot": "點擊外側或按 Esc 關閉",
+    "preflight.link.ok": "遙測連線正常",
+    "preflight.link.lost": "遙測連線斷線",
+    "preflight.flight.offline": "尚未連線飛機",
+    "preflight.gps.ok": "GPS 已定位 ({0} 顆衛星)",
+    "preflight.gps.weak": "GPS 訊號不足 ({0} 顆衛星)",
+    "preflight.gps.hdop": "HDOP 過高 ({0})",
+    "preflight.bat.unknown": "電池電壓未知",
+    "preflight.bat.low": "電池電壓過低 {0} V (低於 {1} V)",
+    "preflight.bat.marginal": "電池電壓接近閾值 {0} V",
+    "preflight.bat.ok": "電池電壓正常 {0} V",
+    "preflight.mission.ok": "任務已上傳 ({0} 點)",
+    "preflight.mission.empty": "尚未上傳任務",
+    "preflight.fence.ok": "電子圍籬已啟用 ({0} 個區塊)",
+    "preflight.fence.off": "電子圍籬未啟用",
+    "preflight.home.ok": "Home 點已設定",
+    "preflight.home.notset": "Home 點尚未設定",
 
     "tab.map": "地圖",
     "tab.combined": "主控",
     "tab.cameras": "攝影機",
     "tab.sensors": "感測器",
     "tab.mission": "任務",
+    "tab.fence": "電子圍籬",
+    "tab.params": "參數",
+    "tab.inspector": "訊息檢視",
+    "tab.tlog": "遙測日誌",
     "tab.calibration": "校準",
     "tab.log": "紀錄",
     "tab.settings": "設定",
+    "btn.import": "匯入 .PLAN",
+    "fence.plate": "電子圍籬 · 草稿",
+    "fence.title": "圍籬編輯器",
+    "fence.enable": "啟用",
+    "fence.tool.circle": "圓形",
+    "fence.tool.circle.meta": "HOME + 半徑",
+    "fence.tool.incl": "可飛區",
+    "fence.tool.incl.meta": "必須留在裡面",
+    "fence.tool.excl": "禁飛區",
+    "fence.tool.excl.meta": "不可進入",
+    "fence.tool.rally": "備援返航點",
+    "fence.tool.rally.meta": "RTL 目標",
+    "fence.tool.delete": "刪除",
+    "fence.tool.delete.meta": "點擊移除",
+    "fence.tool.done": "完成",
+    "fence.opt.radius": "圓半徑",
+    "fence.opt.alt": "圓高度上限",
+    "fence.opt.action": "違規動作",
+    "fence.action.rtl_home": "RTL 回 HOME",
+    "fence.action.rtl_rally": "RTL 最近 RALLY",
+    "fence.action.land": "原地降落",
+    "fence.upload": "上傳圍籬",
+    "fence.clear": "清除",
+    "fence.mode.off": "關閉",
+    "readout.pfd": "主要飛行儀表",
+    "readout.pfd.standby": "STANDBY",
+    "pfd.dist": "距離 HOME",
+    "pfd.ttg": "電池估時",
+    "pfd.rssi": "訊號強度",
+    "pfd.lq": "連線品質",
+    "pfd.fence": "圍籬",
+    "inspector.title": "MAVLINK 訊息檢視",
+    "tlog.title": "遙測日誌",
+    "tlog.start": "開始錄製",
+    "tlog.stop": "停止錄製",
+    "tlog.replay": "重播",
+    "tlog.play": "播放",
+    "tlog.pause": "暫停",
+    "tlog.clear": "清除",
+    "tlog.empty": "錄製後即可在此重播每一幀資料。",
+    "joy.title": "手動控制",
+    "joy.enable": "啟用",
+    "joy.hint": "按住 Q 投入 · ESC 釋放 · WASD/方向鍵",
+    "settings.layout": "面板配置",
+    "settings.reset_layout": "重設面板位置",
+    "settings.reset_layout.meta": "清除本機拖曳",
+    "log.tag.fence": "圍籬",
+    "log.tag.param": "參數",
+    "log.tag.plan": "任務檔",
+    "log.msg.fence_breach": "{0} 觸發電子圍籬！",
+    "log.msg.fence_upload": "{0} 上傳圍籬：{1} 區塊 / {2} 備援點",
+    "log.msg.fence_upload_local": "上傳圍籬：{0} 區塊 / {1} 備援點",
+    "log.msg.param_set": "參數 {0} = {1}",
+    "log.msg.plan_export": "{0} 已匯出 .plan",
+    "log.msg.plan_import": "已匯入 {0}：{1} 航點 / {2} 圍籬 / {3} 備援",
+    "log.msg.plan_import_fail": ".plan 匯入失敗：{0}",
+    "log.msg.home_set": "{0} 設定 HOME @ {1}, {2}",
+    "log.msg.manual_engage": "{0} 進入手動控制",
+    "log.msg.manual_release": "{0} 解除手動控制",
     "sb.active": "主控載具",
     "sb.frame": "機型 / 模式",
 
@@ -629,15 +765,100 @@ const dicts: Record<Lang, Record<string, string>> = {
     "check.operator": "Operator confirmed",
     "check.ready": "READY",
     "check.pending": "PENDING",
+    "check.fail": "BLOCKED",
+    "check.warn": "REVIEW",
+    "check.pass": "READY",
+    "check.hint": "Click status for details.",
+    "preflight.title": "PREFLIGHT DETAIL",
+    "preflight.foot": "Click outside or press Esc to close",
+    "preflight.link.ok": "Telemetry link healthy",
+    "preflight.link.lost": "Telemetry link lost",
+    "preflight.flight.offline": "Vehicle offline",
+    "preflight.gps.ok": "GPS lock ({0} sats)",
+    "preflight.gps.weak": "GPS weak ({0} sats)",
+    "preflight.gps.hdop": "HDOP high ({0})",
+    "preflight.bat.unknown": "Battery voltage unknown",
+    "preflight.bat.low": "Battery low {0} V (under {1} V)",
+    "preflight.bat.marginal": "Battery marginal {0} V",
+    "preflight.bat.ok": "Battery {0} V",
+    "preflight.mission.ok": "Mission uploaded ({0} wp)",
+    "preflight.mission.empty": "No mission uploaded",
+    "preflight.fence.ok": "Geofence active ({0} shapes)",
+    "preflight.fence.off": "Geofence disabled",
+    "preflight.home.ok": "Home position set",
+    "preflight.home.notset": "Home position not set",
 
     "tab.map": "MAP",
     "tab.combined": "COMBINED",
     "tab.cameras": "CAMERAS",
     "tab.sensors": "SENSORS",
     "tab.mission": "MISSION",
+    "tab.fence": "FENCE",
+    "tab.params": "PARAMS",
+    "tab.inspector": "INSPECTOR",
+    "tab.tlog": "TLOG",
     "tab.calibration": "CALIBRATION",
     "tab.log": "LOG",
     "tab.settings": "SETTINGS",
+    "btn.import": "IMPORT .PLAN",
+    "fence.plate": "GEOFENCE · DRAFT",
+    "fence.title": "GEOFENCE EDITOR",
+    "fence.enable": "ENABLE",
+    "fence.tool.circle": "CIRCLE",
+    "fence.tool.circle.meta": "HOME + RADIUS",
+    "fence.tool.incl": "INCLUSION",
+    "fence.tool.incl.meta": "MUST STAY INSIDE",
+    "fence.tool.excl": "EXCLUSION",
+    "fence.tool.excl.meta": "NO-FLY ZONE",
+    "fence.tool.rally": "RALLY",
+    "fence.tool.rally.meta": "RTL TARGETS",
+    "fence.tool.delete": "DELETE",
+    "fence.tool.delete.meta": "CLICK TO REMOVE",
+    "fence.tool.done": "DONE",
+    "fence.opt.radius": "CIRCLE R",
+    "fence.opt.alt": "CIRCLE ALT",
+    "fence.opt.action": "BREACH",
+    "fence.action.rtl_home": "RTL HOME",
+    "fence.action.rtl_rally": "RTL NEAREST RALLY",
+    "fence.action.land": "LAND IN PLACE",
+    "fence.upload": "UPLOAD FENCE",
+    "fence.clear": "CLEAR",
+    "fence.mode.off": "OFF",
+    "readout.pfd": "PRIMARY FLIGHT DISPLAY",
+    "readout.pfd.standby": "STANDBY",
+    "pfd.dist": "D-HOME",
+    "pfd.ttg": "BAT TTG",
+    "pfd.rssi": "RSSI",
+    "pfd.lq": "LQ",
+    "pfd.fence": "FENCE",
+    "inspector.title": "MAVLINK INSPECTOR",
+    "tlog.title": "TELEMETRY LOG",
+    "tlog.start": "START REC",
+    "tlog.stop": "STOP REC",
+    "tlog.replay": "REPLAY",
+    "tlog.play": "PLAY",
+    "tlog.pause": "PAUSE",
+    "tlog.clear": "CLEAR",
+    "tlog.empty": "START RECORDING TO REPLAY FRAMES LATER.",
+    "joy.title": "MANUAL OVERRIDE",
+    "joy.enable": "ENABLE",
+    "joy.hint": "HOLD Q TO ENGAGE · ESC RELEASE · WASD/ARROWS",
+    "settings.layout": "LAYOUT",
+    "settings.reset_layout": "RESET PANEL POSITIONS",
+    "settings.reset_layout.meta": "CLEAR LOCAL DRAGS",
+    "log.tag.fence": "FENCE",
+    "log.tag.param": "PARAM",
+    "log.tag.plan": "PLAN",
+    "log.msg.fence_breach": "{0} fence breach!",
+    "log.msg.fence_upload": "{0} fence uploaded: {1} shapes / {2} rally",
+    "log.msg.fence_upload_local": "Fence uploaded: {0} shapes / {1} rally",
+    "log.msg.param_set": "Param {0} = {1}",
+    "log.msg.plan_export": "{0} exported .plan",
+    "log.msg.plan_import": "Imported {0}: {1} wp / {2} fence / {3} rally",
+    "log.msg.plan_import_fail": ".plan import failed: {0}",
+    "log.msg.home_set": "{0} HOME @ {1}, {2}",
+    "log.msg.manual_engage": "{0} entered manual override",
+    "log.msg.manual_release": "{0} released manual override",
     "sb.active": "ACTIVE VEHICLE",
     "sb.frame": "FRAME / MODE",
 
@@ -944,6 +1165,7 @@ function makeVehicle(
     mode: "standby",
     safetyState: "offline",
     preflightOk: false,
+    preflightReasons: [],
     missionUploaded: false,
     missionCount: 0,
     missionActiveIndex: null,
@@ -953,6 +1175,11 @@ function makeVehicle(
     accelX: 0, accelY: 0, accelZ: 1,
     baroAlt: 0, baroVs: 0, baroP: 1013.2, baroT: 24.5,
     batI: 0, batUsed: 0,
+    homeLat: null, homeLon: null, homeAlt: null,
+    batTtgSec: null, distHomeM: null,
+    rssiDbm: null, linkQuality: null,
+    fenceState: "none",
+    geofence: { enabled: false, shapes: [], rally: [], breachAction: "rtl-home" },
     marker: null, gpsLine: null, insLine: null, predictedLine: null,
   };
 }
@@ -1468,7 +1695,11 @@ type BridgeClientMessage =
   | { type: "configureLink"; id: string; link: VehicleLink }
   | { type: "command"; id: string; command: VehicleCommand }
   | { type: "uploadPlan"; id: string; waypoints: ServerMissionWaypoint[] }
-  | { type: "calibration"; id: string; step: number; capture: number; done: boolean };
+  | { type: "uploadGeofence"; id: string; plan: GeofencePlan }
+  | { type: "calibration"; id: string; step: number; capture: number; done: boolean }
+  | { type: "getParameters"; id: string }
+  | { type: "setParameter"; id: string; key: string; value: ParamValue }
+  | { type: "manualOverride"; id: string; override: { roll: number; pitch: number; yaw: number; throttle: number; active: boolean } };
 
 function queueBridgeCommand(cmd: BridgeClientMessage): void {
   if (cmd.type === "connect" || cmd.type === "disconnect") {
@@ -1544,6 +1775,7 @@ interface VehicleFramePayload {
   mode: VehicleMode;
   safetyState: SafetyState;
   preflightOk: boolean;
+  preflightReasons?: PreflightReason[];
   missionUploaded: boolean;
   missionCount: number;
   missionActiveIndex: number | null;
@@ -1553,6 +1785,14 @@ interface VehicleFramePayload {
   accelX: number; accelY: number; accelZ: number;
   baroAlt: number; baroVs: number; baroP: number; baroT: number;
   batI: number; batUsed: number;
+  homeLat?: number | null;
+  homeLon?: number | null;
+  homeAlt?: number | null;
+  batTtgSec?: number | null;
+  distHomeM?: number | null;
+  rssiDbm?: number | null;
+  linkQuality?: number | null;
+  fenceState?: "inside" | "breach-soft" | "breach-hard" | "none";
 }
 
 interface ServerMissionWaypoint {
@@ -1577,13 +1817,41 @@ interface ServerLogMessage {
   msgArgs?: (string | number)[];
 }
 
-type ServerMessage = ServerHello | ServerFleetFrame | ServerLogMessage;
+interface ServerGeofenceMessage {
+  type: "geofence";
+  id: string;
+  plan: GeofencePlan;
+}
+interface ServerParametersMessage {
+  type: "parameters";
+  id: string;
+  params: ParameterDescriptor[];
+}
+interface ServerParamAckMessage {
+  type: "paramAck";
+  id: string;
+  key: string;
+  ok: boolean;
+  value: ParamValue;
+  message?: string;
+}
+
+type ServerMessage =
+  | ServerHello
+  | ServerFleetFrame
+  | ServerLogMessage
+  | ServerGeofenceMessage
+  | ServerParametersMessage
+  | ServerParamAckMessage;
 
 function handleBridgeMessage(msg: ServerMessage): void {
   switch (msg.type) {
-    case "hello":   onHello(msg);       break;
-    case "fleet":   applyFleetFrame(msg); break;
-    case "log":     applyLogFromBridge(msg); break;
+    case "hello":      onHello(msg); break;
+    case "fleet":      applyFleetFrame(msg); break;
+    case "log":        applyLogFromBridge(msg); break;
+    case "geofence":   onServerGeofence(msg); break;
+    case "parameters": onServerParameters(msg); break;
+    case "paramAck":   onServerParamAck(msg); break;
   }
 }
 
@@ -1638,6 +1906,7 @@ function applyFleetFrame(frame: ServerFleetFrame): void {
     v.mode = f.mode;
     v.safetyState = f.safetyState;
     v.preflightOk = f.preflightOk;
+    v.preflightReasons = f.preflightReasons ?? [];
     v.missionUploaded = f.missionUploaded;
     v.missionCount = f.missionCount;
     v.missionActiveIndex = f.missionActiveIndex;
@@ -1648,6 +1917,14 @@ function applyFleetFrame(frame: ServerFleetFrame): void {
     v.baroAlt = f.baroAlt; v.baroVs = f.baroVs;
     v.baroP = f.baroP; v.baroT = f.baroT;
     v.batI = f.batI; v.batUsed = f.batUsed;
+    v.homeLat = f.homeLat ?? null;
+    v.homeLon = f.homeLon ?? null;
+    v.homeAlt = f.homeAlt ?? null;
+    v.batTtgSec = f.batTtgSec ?? null;
+    v.distHomeM = f.distHomeM ?? null;
+    v.rssiDbm = f.rssiDbm ?? null;
+    v.linkQuality = f.linkQuality ?? null;
+    v.fenceState = f.fenceState ?? "none";
 
     // ---- Track management ----
     // Three independent polylines per vehicle:
@@ -1715,6 +1992,11 @@ function applyFleetFrame(frame: ServerFleetFrame): void {
   updateRangeRings();
   renderActive();
   renderFleetChips();
+  updatePfdAndMeta();
+  updatePreflightChip();
+  ingestInspector(frame);
+  ingestTlog(frame);
+  refreshFenceSummaryIfActive();
 
   // The active vehicle's flight state may have flipped this frame even if
   // the fleet aggregate didn't, so refresh the rail unconditionally —
@@ -1727,6 +2009,26 @@ function applyFleetFrame(frame: ServerFleetFrame): void {
   if (fleetWasFlying !== state.flight) {
     refreshLedger();
   }
+}
+
+function onServerGeofence(msg: ServerGeofenceMessage): void {
+  const v = state.vehicles.find((x) => x.id === msg.id);
+  if (!v) return;
+  v.geofence = msg.plan;
+  if (state.activeVehicleId === v.id) {
+    geofenceLayer?.load(msg.plan);
+    refreshFenceUI();
+  }
+}
+
+function onServerParameters(msg: ServerParametersMessage): void {
+  if (msg.id !== state.activeVehicleId) return;
+  paramEditor?.hydrate(msg.params);
+}
+
+function onServerParamAck(msg: ServerParamAckMessage): void {
+  if (msg.id !== state.activeVehicleId) return;
+  paramEditor?.applyAck(msg.key, msg.ok, msg.value, msg.message);
 }
 
 function applyLogFromBridge(msg: ServerLogMessage): void {
@@ -3304,6 +3606,604 @@ function tickClock(): void {
   if (date) date.textContent = `${now.getFullYear()}·${pad2(now.getMonth() + 1)}·${pad2(now.getDate())}`;
 }
 
+// ---------- 14. New GCS modules wiring (PFD, popup, fence, params, inspector, tlog, video, joystick, dock) ----------
+
+let pfd: PfdHandle | null = null;
+let geofenceLayer: GeofenceLayerHandle | null = null;
+let paramEditor: ParamEditorHandle | null = null;
+let inspector: InspectorHandle | null = null;
+let video: VideoHandle | null = null;
+let gamepad: GamepadHandle | null = null;
+let leftStickUpdate: ((x: number, y: number) => void) | null = null;
+let rightStickUpdate: ((x: number, y: number) => void) | null = null;
+let fenceMapMounted = false;
+let fenceMode: FenceMode = "off";
+let fenceMap: any = null;
+let activeReplay: ReplayHandle | null = null;
+let inspectorFilter = "";
+let manualSendTimer: ReturnType<typeof setInterval> | null = null;
+
+function preflightSeverity(reasons: PreflightReason[]): PreflightSeverity {
+  let worst: PreflightSeverity = "pass";
+  for (const r of reasons) {
+    if (r.severity === "fail") return "fail";
+    if (r.severity === "warn") worst = "warn";
+  }
+  return worst;
+}
+
+function severityFromPreflight(s: PreflightSeverity): Severity {
+  return s === "pass" ? "ok" : s === "warn" ? "warn" : "fail";
+}
+
+function preflightReasonText(r: PreflightReason): string {
+  const text = t(r.key, ...(r.args ?? []));
+  return text === r.key ? r.key : text;
+}
+
+function updatePreflightChip(): void {
+  const v = activeVehicle();
+  const chip = $<HTMLButtonElement>(".check-state");
+  if (!chip) return;
+  if (!v.flight || v.preflightReasons.length === 0) {
+    chip.dataset["sev"] = v.flight ? "warn" : "off";
+    chip.textContent = t(v.flight ? "check.pending" : "safety.offline");
+    return;
+  }
+  const sev = preflightSeverity(v.preflightReasons);
+  chip.dataset["sev"] = severityFromPreflight(sev);
+  chip.textContent = sev === "fail" ? t("check.fail")
+    : sev === "warn" ? t("check.warn")
+    : t("check.pass");
+}
+
+function showPreflightDetail(): void {
+  const v = activeVehicle();
+  const chip = $<HTMLButtonElement>(".check-state");
+  if (!chip) return;
+  const reasons = v.preflightReasons.length > 0 ? v.preflightReasons : [
+    { key: "preflight.flight.offline", severity: "fail" as PreflightSeverity },
+  ];
+  const items = reasons.map((r) =>
+    `<li data-sev="${r.severity}">${escapeHtml(preflightReasonText(r))}</li>`
+  ).join("");
+  const html = `
+    <span class="popup-title">${escapeHtml(t("preflight.title"))}</span>
+    <ul class="popup-list">${items}</ul>
+    <span class="popup-foot">${escapeHtml(t("preflight.foot"))}</span>
+  `;
+  openPopup({ anchor: chip, className: "popup-card--preflight", html });
+}
+
+function updatePfdAndMeta(): void {
+  const v = activeVehicle();
+  const frame = v.flight ? toFrameForPfd(v) : null;
+  pfd?.update(frame);
+  const stateChip = $("[data-pfd-state]");
+  if (stateChip) {
+    stateChip.textContent = v.flight
+      ? (v.armed ? v.mode.toUpperCase() : "PREFLIGHT")
+      : "STANDBY";
+  }
+  // Meta strip
+  const distEl = $("[data-pfd-meta='dist']");
+  const ttgEl = $("[data-pfd-meta='ttg']");
+  const rssiEl = $("[data-pfd-meta='rssi']");
+  const lqEl = $("[data-pfd-meta='lq']");
+  const fenceEl = $("[data-pfd-meta='fence']");
+  if (distEl) {
+    distEl.textContent = formatDistance(v.distHomeM);
+    applySeverity(distEl, distanceSeverity(v.distHomeM, 250));
+  }
+  if (ttgEl) {
+    ttgEl.textContent = formatDuration(v.batTtgSec);
+    const sev: Severity = v.batTtgSec == null ? "off"
+      : v.batTtgSec < 120 ? "fail"
+      : v.batTtgSec < 300 ? "warn"
+      : "ok";
+    applySeverity(ttgEl, sev);
+  }
+  if (rssiEl) {
+    rssiEl.textContent = v.rssiDbm == null ? "—" : `${v.rssiDbm} dBm`;
+    applySeverity(rssiEl, rssiSeverity(v.rssiDbm));
+  }
+  if (lqEl) {
+    lqEl.textContent = v.linkQuality == null ? "—" : `${Math.round(v.linkQuality * 100)} %`;
+    applySeverity(lqEl, linkQualitySeverity(v.linkQuality));
+  }
+  if (fenceEl) {
+    const map: Record<string, string> = {
+      inside: "INSIDE", "breach-soft": "WARN", "breach-hard": "BREACH", none: "OFF",
+    };
+    fenceEl.textContent = map[v.fenceState] ?? "—";
+    applySeverity(fenceEl, fenceSeverity(v.fenceState));
+  }
+  // Apply battery severity to existing telemetry vbat readouts.
+  const vbatEls = $$("[data-tel='vbat'], [data-tel-cb='vbat']");
+  for (const el of vbatEls) applySeverity(el, batterySeverity(v.vbat));
+}
+
+/** Convert renderer-side Vehicle to a VehicleFrame the PFD module expects. */
+function toFrameForPfd(v: Vehicle): import("../shared/protocol").VehicleFrame {
+  return {
+    id: v.id, flight: v.flight, linkActive: v.linkActive,
+    lat: v.lat, lon: v.lon,
+    altitude: v.altitude, speed: v.speed, heading: v.heading,
+    gpsActive: v.gpsActive, gpsSats: v.gpsSats, gpsHdop: v.gpsHdop,
+    insActive: v.insActive,
+    mode: v.mode, safetyState: v.safetyState,
+    preflightOk: v.preflightOk, preflightReasons: v.preflightReasons,
+    missionUploaded: v.missionUploaded, missionCount: v.missionCount,
+    missionActiveIndex: v.missionActiveIndex,
+    roll: v.roll, pitch: v.pitch, yaw: v.yaw,
+    thr: v.thr, vbat: v.vbat, armed: v.armed,
+    gyroX: v.gyroX, gyroY: v.gyroY, gyroZ: v.gyroZ,
+    accelX: v.accelX, accelY: v.accelY, accelZ: v.accelZ,
+    baroAlt: v.baroAlt, baroVs: v.baroVs, baroP: v.baroP, baroT: v.baroT,
+    batI: v.batI, batUsed: v.batUsed,
+    homeLat: v.homeLat, homeLon: v.homeLon, homeAlt: v.homeAlt,
+    batTtgSec: v.batTtgSec, distHomeM: v.distHomeM,
+    rssiDbm: v.rssiDbm, linkQuality: v.linkQuality,
+    fenceState: v.fenceState,
+  };
+}
+
+function ingestInspector(frame: ServerFleetFrame): void {
+  if (!inspector) return;
+  for (const f of frame.vehicles) {
+    inspector.ingestFrame(f.id, {
+      ...f,
+      preflightReasons: f.preflightReasons ?? [],
+      homeLat: f.homeLat ?? null,
+      homeLon: f.homeLon ?? null,
+      homeAlt: f.homeAlt ?? null,
+      batTtgSec: f.batTtgSec ?? null,
+      distHomeM: f.distHomeM ?? null,
+      rssiDbm: f.rssiDbm ?? null,
+      linkQuality: f.linkQuality ?? null,
+      fenceState: f.fenceState ?? "none",
+    } as import("../shared/protocol").VehicleFrame, frame.t);
+  }
+  if (state.view === "inspector") renderInspector();
+}
+
+function renderInspector(): void {
+  if (!inspector) return;
+  const v = activeVehicle();
+  const fields = inspector.fields(v.id);
+  const filter = inspectorFilter.trim().toLowerCase();
+  const visible = filter ? fields.filter((f) => f.name.toLowerCase().includes(filter)) : fields;
+  const totalRate = fields.reduce((s, f) => s + f.rateHz, 0);
+  setText("[data-inspector-stats]", `${fields.length} fields · ${totalRate.toFixed(1)} Hz`);
+  const body = $<HTMLElement>("[data-inspector-body]");
+  if (!body) return;
+  body.innerHTML = visible.map((f: FieldStat) => {
+    const last = formatNumber(f.lastValue);
+    const path = sparklinePath(f.history, 200, 24);
+    return `
+      <article class="inspector-card" data-inspector-card="${escapeHtml(f.name)}">
+        <span class="inspector-card-name">${escapeHtml(f.name)}</span>
+        <span class="inspector-card-value">${last}</span>
+        <svg class="inspector-card-spark" viewBox="0 0 200 24" preserveAspectRatio="none"><path d="${path}"/></svg>
+        <span class="inspector-card-meta">
+          <span>min ${formatNumber(f.min)}</span>
+          <span>max ${formatNumber(f.max)}</span>
+          <span>${f.rateHz.toFixed(1)} Hz</span>
+        </span>
+      </article>`;
+  }).join("");
+}
+
+function formatNumber(n: number): string {
+  if (!Number.isFinite(n)) return "—";
+  const abs = Math.abs(n);
+  if (abs >= 1000) return n.toFixed(0);
+  if (abs >= 10) return n.toFixed(1);
+  return n.toFixed(3);
+}
+
+async function ingestTlog(frame: ServerFleetFrame): Promise<void> {
+  if (!tlogIsRecording()) return;
+  // Map renderer payload to protocol.VehicleFrame for storage.
+  const frames = frame.vehicles.map((f) => ({
+    ...f,
+    preflightReasons: f.preflightReasons ?? [],
+    homeLat: f.homeLat ?? null,
+    homeLon: f.homeLon ?? null,
+    homeAlt: f.homeAlt ?? null,
+    batTtgSec: f.batTtgSec ?? null,
+    distHomeM: f.distHomeM ?? null,
+    rssiDbm: f.rssiDbm ?? null,
+    linkQuality: f.linkQuality ?? null,
+    fenceState: f.fenceState ?? "none",
+  })) as import("../shared/protocol").VehicleFrame[];
+  tlogRecordFrame(frame.t, frames);
+}
+
+async function refreshTlogSummary(): Promise<void> {
+  const s = await tlogSummary();
+  setText("[data-tlog-summary]", s.count === 0
+    ? (tlogIsRecording() ? "REC · 0 frames" : "no recording")
+    : `${s.count} frames · ${formatDuration(s.durationSec)}`);
+  const replayBtn = $<HTMLButtonElement>("[data-tlog-action='replay']");
+  const clearBtn = $<HTMLButtonElement>("[data-tlog-action='clear']");
+  if (replayBtn) replayBtn.disabled = s.count === 0;
+  if (clearBtn) clearBtn.disabled = s.count === 0;
+}
+
+function setupReplayUi(rep: ReplayHandle): void {
+  activeReplay = rep;
+  const range = $<HTMLInputElement>("[data-tlog-range]");
+  if (range) {
+    range.max = String(Math.max(1, rep.durationSec()));
+    range.value = "0";
+    range.disabled = false;
+    range.addEventListener("input", () => {
+      rep.seek(Number(range.value));
+    });
+  }
+  const playBtn = $<HTMLButtonElement>("[data-tlog-action='replay']");
+  if (playBtn) {
+    playBtn.querySelector(".op-btn-label")!.textContent = rep.isPlaying() ? t("tlog.pause") : t("tlog.play");
+  }
+}
+
+function renderTlogFrames(frames: import("../shared/protocol").VehicleFrame[]): void {
+  const canvas = $<HTMLElement>("[data-tlog-canvas]");
+  if (!canvas) return;
+  if (frames.length === 0) {
+    canvas.innerHTML = `<p class="tlog-empty">${t("tlog.empty")}</p>`;
+    return;
+  }
+  canvas.innerHTML = frames.map((f) => `
+    <dl class="tlog-frame-card">
+      <dt>ID</dt><dd>${escapeHtml(f.id)}</dd>
+      <dt>MODE</dt><dd>${escapeHtml(f.mode)}</dd>
+      <dt>SAFETY</dt><dd>${escapeHtml(f.safetyState)}</dd>
+      <dt>LAT</dt><dd>${f.lat.toFixed(5)}</dd>
+      <dt>LON</dt><dd>${f.lon.toFixed(5)}</dd>
+      <dt>ALT</dt><dd>${f.altitude.toFixed(1)} m</dd>
+      <dt>VBAT</dt><dd>${f.vbat.toFixed(2)} V</dd>
+      <dt>HDG</dt><dd>${f.heading.toFixed(0)}°</dd>
+    </dl>
+  `).join("");
+}
+
+// ---- Geofence wiring ----
+
+function ensureFenceMap(): void {
+  if (fenceMapMounted || typeof L === "undefined") return;
+  const slot = document.getElementById("map-slot-fence");
+  if (!slot) return;
+  fenceMap = L.map(slot, {
+    zoomControl: true, attributionControl: false, preferCanvas: true, fadeAnimation: false,
+  }).setView([24.787, 121.011], 17);
+  L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 20 }).addTo(fenceMap);
+  geofenceLayer?.setMap(fenceMap);
+  fenceMapMounted = true;
+  // Hydrate from active vehicle.
+  geofenceLayer?.load(activeVehicle().geofence);
+}
+
+function refreshFenceUI(): void {
+  const v = activeVehicle();
+  const fence = geofenceLayer?.current() ?? v.geofence;
+  setText("[data-fence-summary]", summarizeFence(fence));
+  const enable = $<HTMLInputElement>("[data-fence-enable]");
+  if (enable) enable.checked = fence.enabled;
+  const action = $<HTMLSelectElement>("[data-fence-opt='action']");
+  if (action) action.value = fence.breachAction;
+  $$<HTMLButtonElement>("[data-fence-tool]").forEach((btn) => {
+    btn.classList.toggle("is-active", btn.dataset["fenceTool"] === fenceMode);
+  });
+  const modeLabel = $<HTMLElement>("[data-fence-mode-label]");
+  if (modeLabel) modeLabel.textContent = `MODE · ${fenceMode.toUpperCase()}`;
+}
+
+function refreshFenceSummaryIfActive(): void {
+  if (state.view !== "fence") return;
+  refreshFenceUI();
+}
+
+function setFenceMode(mode: FenceMode): void {
+  fenceMode = mode;
+  geofenceLayer?.setMode(mode);
+  refreshFenceUI();
+}
+
+function uploadFence(): void {
+  if (!geofenceLayer) return;
+  const v = activeVehicle();
+  const plan = geofenceLayer.current();
+  v.geofence = plan;
+  sendBridge({ type: "uploadGeofence", id: v.id, plan }, true);
+  pushLog("info", "log.tag.fence", "log.msg.fence_upload_local",
+    plan.shapes.length, plan.rally.length);
+}
+
+// ---- Mounting on first init ----
+
+function mountGcsModules(): void {
+  // PFD
+  const pfdMount = document.querySelector<HTMLElement>("[data-pfd-mount]");
+  if (pfdMount) pfd = mountPfd(pfdMount);
+
+  // Geofence layer instance (map mounted lazily on view switch)
+  geofenceLayer = createGeofenceLayer();
+  geofenceLayer.onChange((plan) => {
+    activeVehicle().geofence = plan;
+    refreshFenceUI();
+  });
+
+  // Param editor
+  const paramMount = document.querySelector<HTMLElement>("[data-params-mount]");
+  if (paramMount) {
+    paramEditor = mountParamEditor(paramMount);
+    paramEditor.onWrite((edits: PendingEdit[]) => {
+      const id = state.activeVehicleId;
+      for (const e of edits) {
+        sendBridge({ type: "setParameter", id, key: e.key, value: e.value }, true);
+      }
+    });
+    // Refresh button hook (the module exposes its handler via a custom attribute trick)
+    const refreshBtn = paramMount.querySelector<HTMLButtonElement>("[data-action='param-refresh']");
+    refreshBtn?.addEventListener("click", () => {
+      sendBridge({ type: "getParameters", id: state.activeVehicleId }, true);
+    });
+  }
+
+  // Inspector
+  inspector = createInspector();
+  $<HTMLInputElement>("[data-inspector-filter]")?.addEventListener("input", (ev) => {
+    inspectorFilter = (ev.target as HTMLInputElement).value;
+    renderInspector();
+  });
+
+  // Video + PIP
+  const videoMount = document.querySelector<HTMLElement>("[data-video-mount]");
+  const pipMount = document.querySelector<HTMLElement>("[data-video-pip]");
+  if (videoMount && pipMount) {
+    video = mountVideo(videoMount, pipMount);
+    video.setUrl(activeVehicle().videoUrl);
+  }
+
+  // Joystick + virtual sticks
+  gamepad = createGamepad();
+  const leftMount = document.querySelector<HTMLElement>('[data-vstick="left"]');
+  const rightMount = document.querySelector<HTMLElement>('[data-vstick="right"]');
+  if (leftMount) leftStickUpdate = mountVirtualStick(leftMount, "YAW · THR");
+  if (rightMount) rightStickUpdate = mountVirtualStick(rightMount, "ROLL · PITCH");
+  gamepad.setOnVisualState(({ connected, engaged, axes }) => {
+    if (leftStickUpdate) leftStickUpdate(axes.yaw, axes.throttle * 2 - 1);
+    if (rightStickUpdate) rightStickUpdate(axes.roll, -axes.pitch);
+    const stateEl = $<HTMLElement>("[data-joystick-state]");
+    if (stateEl) {
+      stateEl.classList.toggle("is-active", connected);
+      stateEl.classList.toggle("is-engaged", engaged);
+      stateEl.textContent = engaged ? "ENGAGED" : connected ? "READY" : "STBY";
+    }
+  });
+  gamepad.setOnOverride((override) => {
+    if (!override.active) return;
+    sendBridge({ type: "manualOverride", id: state.activeVehicleId, override }, false);
+  });
+
+  $<HTMLInputElement>("[data-joystick-enable]")?.addEventListener("change", (ev) => {
+    const on = (ev.target as HTMLInputElement).checked;
+    if (!gamepad) return;
+    gamepad.setEnabled(on);
+    if (!on) {
+      // Force release.
+      sendBridge({
+        type: "manualOverride", id: state.activeVehicleId,
+        override: { roll: 0, pitch: 0, yaw: 0, throttle: 0, active: false },
+      }, false);
+    }
+  });
+
+  // Make telemetry/cam/PFD panels draggable.
+  const cbCam = document.querySelector<HTMLElement>(".cb-cam");
+  const cbTelem = document.querySelector<HTMLElement>(".cb-telem");
+  const cbPfd = document.querySelector<HTMLElement>(".cb-pfd");
+  if (cbCam) makeDraggable(cbCam, "cb-cam");
+  if (cbTelem) makeDraggable(cbTelem, "cb-telem");
+  if (cbPfd) makeDraggable(cbPfd, "cb-pfd");
+}
+
+function bindGcs(): void {
+  // Preflight chip popup
+  $<HTMLButtonElement>("[data-action='preflight-detail']")?.addEventListener("click", showPreflightDetail);
+
+  // Fence tool buttons
+  $$<HTMLButtonElement>("[data-fence-tool]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const mode = btn.dataset["fenceTool"] as FenceMode | undefined;
+      if (mode) setFenceMode(mode);
+    });
+  });
+  $<HTMLInputElement>("[data-fence-enable]")?.addEventListener("change", (ev) => {
+    if (!geofenceLayer) return;
+    const cur = geofenceLayer.current();
+    cur.enabled = (ev.target as HTMLInputElement).checked;
+    geofenceLayer.load(cur);
+    activeVehicle().geofence = cur;
+    refreshFenceUI();
+  });
+  $<HTMLSelectElement>("[data-fence-opt='action']")?.addEventListener("change", (ev) => {
+    if (!geofenceLayer) return;
+    const cur = geofenceLayer.current();
+    cur.breachAction = (ev.target as HTMLSelectElement).value as GeofencePlan["breachAction"];
+    geofenceLayer.load(cur);
+    activeVehicle().geofence = cur;
+  });
+  // Live tweak the most recently added circle's radius/alt as the operator types.
+  $<HTMLInputElement>("[data-fence-opt='radius']")?.addEventListener("change", (ev) => {
+    if (!geofenceLayer) return;
+    const cur = geofenceLayer.current();
+    for (let i = cur.shapes.length - 1; i >= 0; i--) {
+      const s = cur.shapes[i];
+      if (s.type === "circle") {
+        s.radiusM = Math.max(20, Number((ev.target as HTMLInputElement).value));
+        break;
+      }
+    }
+    geofenceLayer.load(cur);
+    activeVehicle().geofence = cur;
+  });
+  $<HTMLInputElement>("[data-fence-opt='alt']")?.addEventListener("change", (ev) => {
+    if (!geofenceLayer) return;
+    const cur = geofenceLayer.current();
+    for (let i = cur.shapes.length - 1; i >= 0; i--) {
+      const s = cur.shapes[i];
+      if (s.type === "circle") {
+        s.maxAltM = Math.max(10, Number((ev.target as HTMLInputElement).value));
+        break;
+      }
+    }
+    geofenceLayer.load(cur);
+    activeVehicle().geofence = cur;
+  });
+  $<HTMLButtonElement>("[data-action='fence-upload']")?.addEventListener("click", uploadFence);
+  $<HTMLButtonElement>("[data-action='fence-clear']")?.addEventListener("click", () => {
+    if (!geofenceLayer) return;
+    geofenceLayer.load({ enabled: false, shapes: [], rally: [], breachAction: "rtl-home" });
+    activeVehicle().geofence = geofenceLayer.current();
+    refreshFenceUI();
+  });
+
+  // Tlog buttons
+  $<HTMLButtonElement>("[data-tlog-action='record']")?.addEventListener("click", () => {
+    tlogStartRecording();
+    $<HTMLButtonElement>("[data-tlog-action='record']")!.disabled = true;
+    $<HTMLButtonElement>("[data-tlog-action='stop']")!.disabled = false;
+    refreshTlogSummary();
+  });
+  $<HTMLButtonElement>("[data-tlog-action='stop']")?.addEventListener("click", () => {
+    tlogStopRecording();
+    $<HTMLButtonElement>("[data-tlog-action='record']")!.disabled = false;
+    $<HTMLButtonElement>("[data-tlog-action='stop']")!.disabled = true;
+    refreshTlogSummary();
+  });
+  $<HTMLButtonElement>("[data-tlog-action='replay']")?.addEventListener("click", async () => {
+    if (activeReplay) {
+      if (activeReplay.isPlaying()) activeReplay.stop();
+      else activeReplay.start();
+      return;
+    }
+    const rep = await createReplay({
+      onFrame: (frames) => renderTlogFrames(frames),
+      onStateChange: (s) => {
+        const range = $<HTMLInputElement>("[data-tlog-range]");
+        if (range && !range.matches(":focus")) {
+          range.value = String(s.positionSec);
+        }
+        setText("[data-tlog-time]", `${formatDuration(s.positionSec)} / ${formatDuration(s.durationSec)}`);
+      },
+    });
+    if (!rep) return;
+    setupReplayUi(rep);
+    rep.start();
+  });
+  $<HTMLButtonElement>("[data-tlog-action='clear']")?.addEventListener("click", async () => {
+    await tlogClear();
+    activeReplay?.stop();
+    activeReplay = null;
+    renderTlogFrames([]);
+    refreshTlogSummary();
+  });
+  $$<HTMLButtonElement>("[data-tlog-rate]").forEach((b) => {
+    b.addEventListener("click", () => {
+      $$<HTMLButtonElement>("[data-tlog-rate]").forEach((x) => x.classList.remove("is-active"));
+      b.classList.add("is-active");
+      const rate = Number(b.dataset["tlogRate"] ?? "1");
+      activeReplay?.setPlaybackRate(rate);
+    });
+  });
+  $<HTMLInputElement>("[data-tlog-range]")?.addEventListener("input", (ev) => {
+    if (activeReplay) activeReplay.seek(Number((ev.target as HTMLInputElement).value));
+  });
+
+  // Layout reset
+  $<HTMLButtonElement>("[data-action='layout-reset']")?.addEventListener("click", resetAllDockPositions);
+
+  // .plan import button (bind onto existing wp-download — keep export, add an import button via context menu)
+  // Override existing download button to write the QGC .plan format including geofence + home.
+  const dlBtn = $<HTMLButtonElement>("[data-action='wp-download']");
+  if (dlBtn) {
+    // Replace handler: write a real .plan using current waypoints + geofence.
+    const newDl = dlBtn.cloneNode(true) as HTMLButtonElement;
+    dlBtn.parentNode?.replaceChild(newDl, dlBtn);
+    newDl.addEventListener("click", () => {
+      const v = activeVehicle();
+      const plan = exportPlan({
+        waypoints: waypoints.map(waypointToServer),
+        geofence: v.geofence,
+        homeLat: v.homeLat ?? v.lat,
+        homeLon: v.homeLon ?? v.lon,
+        homeAlt: v.homeAlt ?? 0,
+      });
+      downloadPlanFile(plan, `airyn-${v.id}-${Date.now()}.plan`);
+      pushLog("info", "log.tag.plan", "log.msg.plan_export", v.callsign);
+    });
+  }
+
+  // Add an "Import .plan" button next to upload. Insert after upload if not present.
+  const planActions = $<HTMLElement>(".plan-actions");
+  if (planActions && !planActions.querySelector("[data-action='wp-import']")) {
+    const importBtn = document.createElement("button");
+    importBtn.className = "op-btn";
+    importBtn.type = "button";
+    importBtn.dataset["action"] = "wp-import";
+    importBtn.innerHTML = `<span class="op-btn-label">${t("btn.import")}</span><span class="op-btn-meta">CTRL+I</span>`;
+    planActions.appendChild(importBtn);
+    importBtn.addEventListener("click", async () => {
+      const picked = await pickPlanFile();
+      if (!picked) return;
+      try {
+        const plan = importPlan(picked.text);
+        // Overwrite waypoints, translating protocol type → internal type.
+        const internalWps: Waypoint[] = plan.waypoints.map((wp) => ({
+          type: wp.type === "takeoff" ? "wp.takeoff"
+              : wp.type === "land" ? "wp.land"
+              : "wp.waypt",
+          lat: wp.lat, lon: wp.lon, alt: wp.alt,
+        }));
+        waypoints.splice(0, waypoints.length, ...internalWps);
+        renderWaypointTable();
+        renderMissionStats(true);
+        renderMissionPlate();
+        renderMissionPath();
+        renderMissionSummary();
+        // Apply geofence to active vehicle (does not auto-upload).
+        const v = activeVehicle();
+        v.geofence = plan.geofence;
+        geofenceLayer?.load(plan.geofence);
+        if (plan.warnings.length > 0) {
+          for (const w of plan.warnings) pushLog("warn", "log.tag.plan", w);
+        }
+        pushLog("info", "log.tag.plan", "log.msg.plan_import",
+          picked.name, plan.waypoints.length, plan.geofence.shapes.length, plan.geofence.rally.length);
+      } catch (err) {
+        pushLog("err", "log.tag.plan", "log.msg.plan_import_fail", String((err as Error).message));
+      }
+    });
+  }
+}
+
+function ensureViewMounts(name: string): void {
+  if (name === "fence") {
+    ensureFenceMap();
+    refreshFenceUI();
+    setTimeout(() => fenceMap?.invalidateSize?.(), 50);
+  } else if (name === "params") {
+    sendBridge({ type: "getParameters", id: state.activeVehicleId }, true);
+  } else if (name === "inspector") {
+    renderInspector();
+  } else if (name === "tlog") {
+    refreshTlogSummary();
+  }
+}
+
 function init(): void {
   bind();
   applyI18n();
@@ -3311,6 +4211,8 @@ function init(): void {
   setTransport(state.transport, false);
   setCam(state.cam);
   initMap();
+  mountGcsModules();
+  bindGcs();
   renderFleetChips();
   setView(state.view);
   setCalStep(state.calStep);
@@ -3324,6 +4226,9 @@ function init(): void {
   renderConnectButton();
   renderFlightModeRail();
   renderCommandControls();
+  updatePreflightChip();
+  updatePfdAndMeta();
+  refreshTlogSummary();
 
   // Open WebSocket to ground/src/bun simulator/bridge.
   connectBridge();
@@ -3334,6 +4239,23 @@ function init(): void {
   // Ground-side dead-reckoning runs while any vehicle has linkActive=false.
   // 4 Hz is plenty for a visual cue; nobody is acting on these positions.
   setInterval(predictTick, 250);
+
+  // Hook view router so new tabs mount their resources lazily.
+  document.querySelectorAll<HTMLButtonElement>(".nav-item[data-tab]").forEach((b) => {
+    b.addEventListener("click", () => {
+      const tab = b.dataset["tab"];
+      if (tab) ensureViewMounts(tab);
+    });
+  });
+
+  // Keep the joystick alive even when the manual override is off — reading
+  // the gamepad keeps the PIP visualisation responsive.
+  manualSendTimer = setInterval(() => {
+    if (gamepad?.isEnabled() && !gamepad.isActive()) {
+      // Active=false override packets keep the FC's manual session alive.
+    }
+  }, 200);
+  void manualSendTimer;
 }
 
 init();

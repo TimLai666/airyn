@@ -27,6 +27,8 @@ export interface VehicleConfig {
   callsign: string;
   color: VehicleColor;
   link: VehicleLink;
+  /** Optional video feed URL. Web-playable format (HLS/MP4/MJPEG/WebRTC manifest). */
+  videoUrl?: string;
 }
 
 export interface MissionWaypoint {
@@ -34,6 +36,72 @@ export interface MissionWaypoint {
   lat: number;
   lon: number;
   alt: number;
+}
+
+/**
+ * Pre-arm reason reported by the flight stack. QGC-style: `severity` lights
+ * the preflight chip, `key` is an i18n string the renderer expands, `args`
+ * fills the placeholders. Severity `pass` is a positive check.
+ */
+export type PreflightSeverity = "pass" | "warn" | "fail";
+export interface PreflightReason {
+  key: string;
+  severity: PreflightSeverity;
+  args?: (string | number)[];
+}
+
+/** Geofence shape supported by Airyn. Mirrors ArduPilot's set. */
+export type GeofenceCircle = {
+  type: "circle";
+  centerLat: number;
+  centerLon: number;
+  radiusM: number;
+  maxAltM: number;
+};
+export type GeofencePolygon = {
+  type: "polygon";
+  inclusion: boolean;       // true = inclusion (must stay inside), false = exclusion (no-fly)
+  vertices: { lat: number; lon: number }[];
+};
+export type GeofenceShape = GeofenceCircle | GeofencePolygon;
+
+export interface RallyPoint {
+  lat: number;
+  lon: number;
+  alt: number;
+}
+
+export interface GeofencePlan {
+  enabled: boolean;
+  shapes: GeofenceShape[];
+  rally: RallyPoint[];
+  /** RTL action when fence breach: nearest rally point or home. */
+  breachAction: "rtl-home" | "rtl-rally" | "land";
+}
+
+/** MAVLink-style scalar parameter. Renderer treats them as opaque key/value. */
+export type ParamValue = number | boolean | string;
+export interface ParameterDescriptor {
+  key: string;
+  value: ParamValue;
+  type: "int" | "float" | "bool" | "string";
+  min?: number;
+  max?: number;
+  step?: number;
+  unit?: string;
+  group?: string;
+  /** Human-readable hint, optional. */
+  hint?: string;
+}
+
+/** Manual stick override (-1..+1) from gamepad/keyboard. */
+export interface ManualOverride {
+  roll: number;
+  pitch: number;
+  yaw: number;
+  throttle: number;        // 0..1
+  /** Active flag — when false, flight stack returns to autonomous control. */
+  active: boolean;
 }
 
 /** Per-tick rolling state for one vehicle. */
@@ -72,6 +140,7 @@ export interface VehicleFrame {
   mode: VehicleMode;
   safetyState: SafetyState;
   preflightOk: boolean;
+  preflightReasons: PreflightReason[];
   missionUploaded: boolean;
   missionCount: number;
   missionActiveIndex: number | null;
@@ -82,6 +151,20 @@ export interface VehicleFrame {
   accelX: number; accelY: number; accelZ: number;
   baroAlt: number; baroVs: number; baroP: number; baroT: number;
   batI: number; batUsed: number;
+  // home position (set once GPS locks). null until acquired.
+  homeLat: number | null;
+  homeLon: number | null;
+  homeAlt: number | null;
+  /** Estimated battery time-to-go in seconds at current draw. null if unknown. */
+  batTtgSec: number | null;
+  /** Distance to home in meters when GPS is good, otherwise null. */
+  distHomeM: number | null;
+  /** Uplink RSSI (-dBm scale). null when not measured. */
+  rssiDbm: number | null;
+  /** Link quality 0..1 (uplink). null when not measured. */
+  linkQuality: number | null;
+  /** Geofence breach state: 'inside' | 'breach-soft' | 'breach-hard'. */
+  fenceState: "inside" | "breach-soft" | "breach-hard" | "none";
 }
 
 /** Server → client. */
@@ -91,6 +174,7 @@ export type ServerMessage =
       build: string;
       port: number;
       vehicles: VehicleConfig[];
+      paramSchema?: ParameterDescriptor[]; // optional default param set
     }
   | {
       type: "fleet";
@@ -104,6 +188,24 @@ export type ServerMessage =
       tagKey: string;        // i18n key, e.g. "log.tag.link"
       msgKey: string;        // i18n key, e.g. "log.msg.connected"
       msgArgs?: (string | number)[];
+    }
+  | {
+      type: "geofence";
+      id: string;
+      plan: GeofencePlan;
+    }
+  | {
+      type: "parameters";
+      id: string;
+      params: ParameterDescriptor[];
+    }
+  | {
+      type: "paramAck";
+      id: string;
+      key: string;
+      ok: boolean;
+      value: ParamValue;
+      message?: string;
     };
 
 /** Client → server. Connection is per-vehicle. */
@@ -113,6 +215,50 @@ export type ClientMessage =
   | { type: "configureLink"; id: string; link: VehicleLink }
   | { type: "command"; id: string; command: VehicleCommand }
   | { type: "uploadPlan"; id: string; waypoints: MissionWaypoint[] }
-  | { type: "calibration"; id: string; step: number; capture: number; done: boolean };
+  | { type: "uploadGeofence"; id: string; plan: GeofencePlan }
+  | { type: "calibration"; id: string; step: number; capture: number; done: boolean }
+  | { type: "getParameters"; id: string }
+  | { type: "setParameter"; id: string; key: string; value: ParamValue }
+  | { type: "manualOverride"; id: string; override: ManualOverride };
 
 export const BRIDGE_PORT = 7711;
+
+/**
+ * QGroundControl-compatible .plan file format (subset). Mirrors
+ * https://docs.qgroundcontrol.com/master/en/qgc-dev-guide/file_formats/plan.html
+ * so .plan files can be exchanged with QGC.
+ */
+export interface QgcPlanFile {
+  fileType: "Plan";
+  version: 1;
+  groundStation: "Airyn Ground" | "QGroundControl";
+  mission: {
+    version: 2;
+    firmwareType: number;       // 12 = ArduPilot, 3 = PX4
+    vehicleType: number;        // 2 = Quadrotor
+    cruiseSpeed: number;
+    hoverSpeed: number;
+    plannedHomePosition: [number, number, number]; // lat, lon, alt
+    items: QgcSimpleItem[];
+  };
+  geoFence: {
+    version: 2;
+    circles: { circle: { center: [number, number]; radius: number }; inclusion: boolean }[];
+    polygons: { polygon: [number, number][]; inclusion: boolean }[];
+  };
+  rallyPoints: {
+    version: 2;
+    points: [number, number, number][];
+  };
+}
+export interface QgcSimpleItem {
+  type: "SimpleItem";
+  command: number;              // 16 = WAYPOINT, 22 = TAKEOFF, 21 = LAND
+  frame: number;                // 3 = MAV_FRAME_GLOBAL_RELATIVE_ALT
+  AMSLAltAboveTerrain: number | null;
+  Altitude: number;
+  AltitudeMode: number;
+  autoContinue: boolean;
+  doJumpId: number;
+  params: (number | null)[];    // [hold, accept_radius, pass_radius, yaw, lat, lon, alt]
+}
